@@ -3,12 +3,14 @@
 import pandas as pd
 import spacy
 from gensim import corpora, models
-import pyldavis
+# import pyldavis
 from os import path
 import argparse
 
 
-def compute_lda(data_path, load_path=None, output_path="LDA_data", tfidf=False):
+def compute_lda(data_path, load_path=None, output_path=None, tfidf=False):
+    if output_path is None:
+        output_path = "LDA_data"
     if load_path is None:
         training_info = pd.read_csv(data_path, sep=',', header=0)
         training_info["body"] = training_info["body"].str.decode('utf-8')
@@ -28,13 +30,13 @@ def compute_lda(data_path, load_path=None, output_path="LDA_data", tfidf=False):
 
         id2word.save_as_text(output_path + "dic.txt")
 
-        corpus = [dictionary.doc2bow(text) for text in texts]
+        corpus = [id2word.doc2bow(text) for text in texts]
         if tfidf:
             corpus = models.TfidfModel(corpus)
 
-        corpora.BleiCorpus.serialize(output_path + "corpora.bin", corpus)
+        corpora.BleiCorpus.serialize(output_path, corpus)
     else:
-        corpus = corpora.BleiCorpus(load_path + "corpora.bin")
+        corpus = corpora.BleiCorpus(load_path)
         id2word = corpora.Dictionary.load_from_text(load_path + "dic.txt")
 
     NB_TOPICS = 10
@@ -48,16 +50,13 @@ def compute_lda(data_path, load_path=None, output_path="LDA_data", tfidf=False):
                                    eval_every=1,
                                    alpha=ALPHA)
 
-
     new_docs = corpus
     all_docs = [lda[new_doc] for new_doc in new_docs]
 
-    lda.show_topics()
+    print lda.show_topics()
 
     # all_docs[1]
-    #
     # lda.show_topic(9)
-    #
     # texts[1]
 
 
