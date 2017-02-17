@@ -1,19 +1,22 @@
-import spacy
 from nltk.tokenize import sent_tokenize
 from gensim.utils import any2unicode, deaccent
 import re
-
-nlp = spacy.load("en")
 
 re_fw_pattern = r"----[-\s]*(Original|Forwarded).*Subject:"
 re_fw_regex = re.compile(re_fw_pattern)
 
 
 def preprocess_mail_body(txt, nlp):
-    """ """
+    '''
+    Args :
+        - txt a string
+        - nlp a spacy language
+    returns :
+        - a list of filtered lemma in the text
+    '''
     # to unicode & get rid of accent
     txt = deaccent(any2unicode(txt))
-    # split according to reply forward (get rid of "entête")
+    # split according to reply forward (get rid of the header)
     txt = "\n".join(re_fw_regex.split(txt))
     txt = txt.replace(">", " ")
     # split sentences

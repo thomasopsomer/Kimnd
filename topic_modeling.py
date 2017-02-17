@@ -1,11 +1,13 @@
 # coding: utf-8
+from os import path
+import argparse
 
 import pandas as pd
 import spacy
 from gensim import corpora, models
 # import pyldavis
-from os import path
-import argparse
+
+from utils import preprocess_mail_body
 
 
 def compute_lda(data_path, load_path=None, output_path=None, tfidf=False):
@@ -17,14 +19,14 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=False):
 
         nlp = spacy.load('en')
 
-        docs = nlp.pipe(training_info.iloc[:1000]["body"], batch_size=1000,
-                        n_threads=4)
+        # docs = nlp.pipe(training_info.iloc[:1000]["body"], batch_size=1000,
+        #                 n_threads=4)
 
         texts = []
-        for i, doc in enumerate(docs):
-            texts.append([tok.lemma_ for tok in doc])
-            if i % 10 == 0:
-                print i
+        for i, doc in enumerate(training_info.iloc[:43000]["body"]):
+            texts.append(preprocess_mail_body(doc, nlp))
+            if i % 1000 == 0:
+                print "{:d} document processed".format(i)
 
         id2word = corpora.Dictionary(texts)
 
@@ -72,6 +74,7 @@ def parse_args():
                         help="path to save the dictionnary and corpus for the"
                         " LDA")
     return parser.parse_args()
+
 
 if __name__ == '__main__':
     args = parse_args()
