@@ -11,20 +11,33 @@ import pyLDAvis.gensim
 from utils import preprocess_mail_body
 
 
-def compute_lda(data_path, load_path=None, output_path=None, tfidf=False):
+def flatten_topics(row, nb_topics):
+    dict_topics = {i: 0 for i in range(nb_topics)}
+    list_topics = literal_eval(row[0])
+    for (topic, score) in list_topics:
+        dict_topics[topic] = score
+    return pd.Series(dict_topics)
+
+
+def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
+                nb_topics=10, alpha=.0025):
+    print "Loading data"
+    training_info = pd.read_csv(path.join(data_path, "training_info.csv"),
+                                sep=',', header=0).set_index("mid")
+    test_info = pd.read_csv(path.join(data_path, "test_info.csv"),
+                            sep=',', header=0).set_index("mid")
+    training_test = pd.concat([training_info["body"], test_info["body"]])
     if output_path is None:
         output_path = "LDA_data"
     if load_path is None:
-        print "Loading data"
-        training_info = pd.read_csv(data_path, sep=',', header=0)
-        training_info["body"] = training_info["body"].str.decode('utf-8')
+        training_test = training_test.str.decode('utf-8')
         print "Loading Spacy"
         nlp = spacy.load('en', parser=False)
 
         # docs = nlp.pipe(training_info.iloc[:1000]["body"], batch_size=1000,
         #                 n_threads=4)
         print "Preprocessing mails"
-        texts = training_info["body"].apply(preprocess_mail_body, args=(nlp,))
+        texts = training_test.apply(preprocess_mail_body, args=(nlp,))
         texts = list(texts)
         # for i, doc in enumerate(training_info["body"]):
         #     texts.append(preprocess_mail_body(doc, nlp))
@@ -37,7 +50,8 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=False):
 
         corpus = [id2word.doc2bow(text) for text in texts]
         if tfidf:
-            corpus = models.TfidfModel(corpus)
+            tfidf_corpus = models.TfidfModel(corpus)
+            corpus = tfidf_corpus[corpus]
 
         corpora.BleiCorpus.serialize(output_path + "_corp", corpus)
     else:
@@ -46,23 +60,26 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=False):
         id2word = corpora.Dictionary.load_from_text(load_path + "_dic")
 
     print "Applying LDA"
-    NB_TOPICS = 10
-    ALPHA = .0025
-    NB_RESULTS = 10
+    #NB_RESULTS = 10
     lda = models.ldamulticore.LdaMulticore(workers=3,
                                        corpus=corpus,
-                                       num_topics=NB_TOPICS,
+                                       num_topics=nb_topics,
                                        id2word=id2word,
                                        iterations=300,
                                        chunksize=600,
                                        eval_every=1,
-                                       alpha=ALPHA)
-
-    #all_docs = [lda[doc] for doc in corpus]
+                                       alpha=alpha)
 
     print lda.show_topics()
-
     lda.save(output_path+ "_lda")
+
+    print "Saving the csv with topics for each mail"
+    all_docs = [lda[doc] for doc in corpus]
+    mids = list(training_test.index)
+    all_docs = pd.DataFrame({"mids": mids,
+                            "lda_res": all_docs}).set_index("mids")
+    all_docs = all_docs.apply(flatten_topics, args=(nb_topics,), axis=1)
+    all_docs.to_csv("LDA_results.csv", sep=",", index=True)
 
 
 def vis_lda(load_path, output_html=None):
@@ -83,7 +100,8 @@ def parse_args():
                                      "text database")
 
     parser.add_argument("data_path",
-                        help="path to the csv file containing the mails")
+                        help="path to the folder of csv files containing the"
+                        " mails")
     parser.add_argument("-l", "--load",
                         help="path to load the dictionnary and corpus for LDA")
     parser.add_argument("-o", "--output",
@@ -99,4 +117,4 @@ if __name__ == '__main__':
     args = parse_args()
 
     compute_lda(args.data_path, load_path=args.load, output_path=args.output)
-    vis_lda(arg.output, output_html=args.html)
+    vis_lda(args.output, output_html=args.html)
