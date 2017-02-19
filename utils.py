@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import pandas as pd
+
 from nltk.tokenize import sent_tokenize
 from gensim.utils import any2unicode, deaccent
 import re
 
-
 # utils for loading and preprocessing dataset
+
 
 def flatmap(df, col, new_col_name, new_col_type=None):
     """perform flatmap or 'explode' operation on column 'col'"""
@@ -69,6 +70,7 @@ def preprocess_mail_body(txt, nlp):
     # to unicode & get rid of accent
     txt = deaccent(any2unicode(txt))
     # split according to reply forward (get rid of "entête")
+
     txt = "\n".join(re_fw_regex.split(txt))
     txt = txt.replace(">", " ")
     # split sentences
@@ -81,7 +83,7 @@ def preprocess_mail_body(txt, nlp):
             if (not tok.is_punct and not tok.is_stop and
                 not tok.like_num and not tok.is_space and
                 not tok.like_url and len(tok) > 1 and
-                "**" not in tok.orth_ and not tok.orth_.startswith("_")
-               ):
-                bow.append(tok.lemma_)
+                "**" not in tok.orth_ and
+                not tok.orth_.startswith("_")):
+                    bow.append(tok.lemma_)
     return bow
