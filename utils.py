@@ -78,7 +78,7 @@ def preprocess_mail_body(txt, nlp):
     # tokenize + lemmatize + filter ?
     bow = []
     for sent in sentences:
-        doc = nlp(sent, parser=False, entity=False)
+        doc = nlp(sent, parse=False, entity=False)
         for tok in doc:
             if (not tok.is_punct and not tok.is_stop and
                 not tok.like_num and not tok.is_space and
