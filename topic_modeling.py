@@ -23,7 +23,7 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=False):
         #                 n_threads=4)
 
         texts = []
-        for i, doc in enumerate(training_info.iloc[:43000]["body"]):
+        for i, doc in enumerate(training_info.iloc["body"]):
             texts.append(preprocess_mail_body(doc, nlp))
             if i % 1000 == 0:
                 print "{:d} document processed".format(i)
@@ -44,22 +44,21 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=False):
     NB_TOPICS = 10
     ALPHA = .0025
     NB_RESULTS = 10
-    lda = models.ldamodel.LdaModel(corpus=corpus,
-                                   num_topics=NB_TOPICS,
-                                   id2word=id2word,
-                                   iterations=300,
-                                   chunksize=600,
-                                   eval_every=1,
-                                   alpha=ALPHA)
+    lda = models.ldamodel.LdaMulticore(workers=3
+                                       corpus=corpus,
+                                       num_topics=NB_TOPICS,
+                                       id2word=id2word,
+                                       iterations=300,
+                                       chunksize=600,
+                                       eval_every=1,
+                                       alpha=ALPHA)
 
     new_docs = corpus
     all_docs = [lda[new_doc] for new_doc in new_docs]
 
     print lda.show_topics()
 
-    # all_docs[1]
-    # lda.show_topic(9)
-    # texts[1]
+    lda.save(output_path)
 
 
 def parse_args():
