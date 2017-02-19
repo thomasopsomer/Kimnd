@@ -34,12 +34,15 @@ def load_dataset(dataset_path, mail_path):
     set_df = flatmap(set_df, "mids", "mid", int)
     # merge with mail content
     set_df = set_df.merge(mail_df, on="mid")
-    # remove duplicates
-    set_df = set_df.drop_duplicates(
-        subset=["sender", "body", "recipients"])
     # fix date issue
     set_df.date = set_df.date.map(
         lambda x: x.replace("0001", "2001").replace("0002", "2002"))
+    # remove duplicates
+    set_df = set_df.drop_duplicates(
+        subset=["sender", "body", "date", "recipients"])
+    # split recipients into list
+    set_df.recipients = set_df.recipients.str.split()
+    #
     set_df.date = pd.to_datetime(set_df.date)
     #
     return set_df
@@ -79,6 +82,6 @@ def preprocess_mail_body(txt, nlp):
                 not tok.like_num and not tok.is_space and
                 not tok.like_url and len(tok) > 1 and
                 "**" not in tok.orth_ and not tok.orth_.startswith("_")
-                ):
+               ):
                 bow.append(tok.lemma_)
     return bow
