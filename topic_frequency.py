@@ -6,13 +6,17 @@ import pandas as pd
 import numpy as np  # FIXME
 from collections import Counter
 from gensim import corpora, models
+import spacy
 
-from utils import load_dataset
+from utils import load_dataset, preprocess_mail_body
 
+nlp = spacy.load('en', parser=False)
 
 path_to_data = "data"
 lda_path = "LDA/LDA_data_lda"
-lda_corpus = "LDA/LDA_data_corp"
+id2word = corpora.Dictionary.load_from_text("LDA/LDA_data_dic")
+
+
 
 ###################
 # Dataset loading #
@@ -31,6 +35,17 @@ print "data loaded"
 # load lda
 lda = models.ldamodel.LdaModel.load(lda_path)
 n_topics = lda.num_topics
+
+
+def get_lda_score(text, lda, nlp, dic):
+    topic_score = np.zeros(lda.num_topics)
+    doc = preprocess_mail_body(text, nlp)
+    bow = dic.doc2bow(doc)
+    topic_score_tups = lda.get_document_topics(bow)
+    for ind, score in topic_score_tups:
+        topic_score[ind] = score
+    return topic_score
+
 print "lda loaded"
 # save all unique sender names
 all_senders = list(set(dataset['sender'].tolist()))
@@ -43,7 +58,8 @@ i = 0
 for tupl in dataset.itertuples():
 
     sender = tupl.sender
-    topic_score = np.abs(np.empty(10))  # FIXME !
+
+    topic_score = get_lda_score(tupl.body, lda, nlp, id2word)
     recipients = tupl.recipients
     # if sender already have an address boo update it
     if sender in address_books:
@@ -79,27 +95,39 @@ print "Frequency computed"
 # baseline #
 #############
 
-# number of recipients to predict
-k = 10
 
-topic_freq_pred = []
-for tupl in testset.itertuples():
-    mid = tupl.mid
-    sender = tupl.sender
-    topic_score = lda(tupl.body)
+def predict(pd_dataset, k=10):
+    '''
+    args :
+        - pd_dataset, pandas dataset as formatted by load_dataset
+        - k int number of recipients
+    return :
+        list of tuple int, list of string : [(mid, [email1, email2]), ...]
+    '''
+    topic_freq_pred = []
+    for tupl in pd_dataset.itertuples():
+        mid = tupl.mid
+        sender = tupl.sender
 
-    # merge list with frequencies into a single dic
-    merge_dic = {}
-    for topic in range(n_topics):
-        for name, freq in address_books[sender][topic]:
-            if name in merged_list:
-                merge_dic[name] += freq * topic_score[topic]
-            else:
-                merge_dic[name] = freq * topic_score[topic]
-    # we sort and take the k bests
-    preds = sorted(merged_dic.items(), key=operator.itemgetter(1),
-                   reverse=True)[:k]
-    topic_freq_pred.append((mid, preds))
+        topic_score = topic_score = get_lda_score(tupl.body, lda, nlp, id2word)
+
+        # merge list with frequencies into a single dic
+        merge_dic = {}
+        for topic in range(n_topics):
+            for name, freq in address_books[sender][topic]:
+                if name in merge_dic:
+                    merge_dic[name] += freq * topic_score[topic]
+                else:
+                    merge_dic[name] = freq * topic_score[topic]
+        # we sort and take the k bests
+        preds = sorted(merge_dic.items(), key=operator.itemgetter(1),
+                       reverse=True)[:k]
+        preds = [item[0] for item in preds]
+        topic_freq_pred.append((mid, preds))
+    return topic_freq_pred
+
+
+topic_freq_pred = predict(testset)
 
 #################################################
 # write predictions in proper format for Kaggle #
@@ -110,4 +138,4 @@ path_to_results = ""
 with open(path_to_results + 'predictions_frequency_topic.txt', 'wb') as f:
     f.write('mid,recipients' + '\n')
     for mid, preds in topic_freq_pred:
-        f.write(str(ids[index]) + ',' + ' '.join(preds) + '\n')
+        f.write(str(mid) + ',' + ' '.join(preds) + '\n')
