@@ -1,6 +1,8 @@
 # coding: utf-8
 from os import path
+from ast import literal_eval
 import argparse
+import re
 
 import pandas as pd
 import spacy
@@ -13,10 +15,16 @@ from utils import preprocess_mail_body
 
 def flatten_topics(row, nb_topics):
     dict_topics = {i: 0 for i in range(nb_topics)}
-    list_topics = literal_eval(row[0])
-    for (topic, score) in list_topics:
+    for (topic, score) in row[0]:
         dict_topics[topic] = score
     return pd.Series(dict_topics)
+
+
+def clean_text(text):
+    text = text.replace(')', ' ').replace('(', ' ').replace('"', '')
+    url_exp = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    text = re.sub(url_exp, '', text)
+    return text
 
 
 def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
@@ -26,18 +34,20 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
                                 sep=',', header=0).set_index("mid")
     test_info = pd.read_csv(path.join(data_path, "test_info.csv"),
                             sep=',', header=0).set_index("mid")
-    training_test = pd.concat([training_info["body"], test_info["body"]])
+    texts = pd.concat([training_info["body"], test_info["body"]])
+    mids = list(texts.index)
     if output_path is None:
         output_path = "LDA_data"
     if load_path is None:
-        training_test = training_test.str.decode('utf-8')
+        texts = texts.str.decode('utf-8')
         print "Loading Spacy"
         nlp = spacy.load('en', parser=False)
 
         # docs = nlp.pipe(training_info.iloc[:1000]["body"], batch_size=1000,
         #                 n_threads=4)
         print "Preprocessing mails"
-        texts = training_test.apply(preprocess_mail_body, args=(nlp,))
+        texts = texts.apply(clean_text)
+        texts = texts.apply(preprocess_mail_body, args=(nlp,))
         texts = list(texts)
         # for i, doc in enumerate(training_info["body"]):
         #     texts.append(preprocess_mail_body(doc, nlp))
@@ -45,14 +55,13 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
         #         print "{:d} document processed".format(i)
         print "Creating id2word and corpus"
         id2word = corpora.Dictionary(texts)
-
+        id2word.filter_extremes(no_below=5, no_above=0.5, keep_n=100000)
         id2word.save_as_text(output_path + "_dic")
 
         corpus = [id2word.doc2bow(text) for text in texts]
         if tfidf:
             tfidf_corpus = models.TfidfModel(corpus)
             corpus = tfidf_corpus[corpus]
-
         corpora.BleiCorpus.serialize(output_path + "_corp", corpus)
     else:
         print "Loading id2word and corpus"
@@ -75,7 +84,6 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
 
     print "Saving the csv with topics for each mail"
     all_docs = [lda[doc] for doc in corpus]
-    mids = list(training_test.index)
     all_docs = pd.DataFrame({"mids": mids,
                             "lda_res": all_docs}).set_index("mids")
     all_docs = all_docs.apply(flatten_topics, args=(nb_topics,), axis=1)
