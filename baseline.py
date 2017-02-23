@@ -3,7 +3,7 @@ import operator
 import pandas as pd
 from collections import Counter
 
-#path_to_data = # fill me!
+path_to_data = "/Users/thomasopsomer/data/altegrad/"
 
 ##########################
 # load some of the files #                           
@@ -12,7 +12,7 @@ from collections import Counter
 training = pd.read_csv(path_to_data + 'training_set.csv', sep=',', header=0)
 
 training_info = pd.read_csv(path_to_data + 'training_info.csv', sep=',', header=0)
-
+    
 test = pd.read_csv(path_to_data + 'test_set.csv', sep=',', header=0)
 
 ################################
@@ -74,7 +74,7 @@ predictions_per_sender = {}
 # number of recipients to predict
 k = 10
 
-for index, row in test.iterrows():
+for index, row in training.iterrows():
     name_ids = row.tolist()
     sender = name_ids[0]
     # get IDs of the emails for which recipient prediction is needed
@@ -95,7 +95,7 @@ for index, row in test.iterrows():
 # write predictions in proper format for Kaggle #                           
 #################################################
 
-#path_to_results = # fill me!
+path_to_results = "./"
 
 with open(path_to_results + 'predictions_random.txt', 'wb') as my_file:
     my_file.write('mid,recipients' + '\n')
