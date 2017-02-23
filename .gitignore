@@ -90,3 +90,4 @@ ENV/
 
 # Datasets
 data/*
+*.csv
