@@ -78,12 +78,14 @@ def preprocess_mail_body(txt, nlp):
     # tokenize + lemmatize + filter ?
     bow = []
     for sent in sentences:
-        doc = nlp(sent, parser=False, entity=False)
+        doc = nlp(sent, parse=False, entity=False)
         for tok in doc:
             if (not tok.is_punct and not tok.is_stop and
                 not tok.like_num and not tok.is_space and
                 not tok.like_url and len(tok) > 1 and
                 "**" not in tok.orth_ and
-                not tok.orth_.startswith("_")):
-                    bow.append(tok.lemma_)
+                not (tok.orth_.startswith("_")) and
+                not (tok.orth_.startswith("-"))):
+                bow.append(tok.lemma_)
     return bow
+
