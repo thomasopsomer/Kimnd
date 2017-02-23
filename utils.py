@@ -21,7 +21,7 @@ def flatmap(df, col, new_col_name, new_col_type=None):
     return res
 
 
-def load_dataset(dataset_path, mail_path):
+def load_dataset(dataset_path, mail_path, train=True):
     """
     Load and preprocess the dataset
     Explode the mail ids (mids)
@@ -38,11 +38,12 @@ def load_dataset(dataset_path, mail_path):
     # fix date issue
     set_df.date = set_df.date.map(
         lambda x: x.replace("0001", "2001").replace("0002", "2002"))
-    # remove duplicates
-    set_df = set_df.drop_duplicates(
-        subset=["sender", "body", "date", "recipients"])
-    # split recipients into list
-    set_df.recipients = set_df.recipients.str.split()
+    if train:
+        # remove duplicates
+        set_df = set_df.drop_duplicates(
+            subset=["sender", "body", "date", "recipients"])
+        # split recipients into list
+        set_df.recipients = set_df.recipients.str.split()
     #
     set_df.date = pd.to_datetime(set_df.date)
     #
