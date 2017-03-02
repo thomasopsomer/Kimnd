@@ -11,6 +11,8 @@ import spacy
 from utils import load_dataset, preprocess_mail_body
 from average_precision import mapk
 
+import pdb
+
 nlp = spacy.load('en', parser=False)
 
 path_to_data = "data"
@@ -61,6 +63,7 @@ for tupl in dataset.itertuples():
     sender = tupl.sender
 
     topic_score = get_lda_score(tupl.body, lda, nlp, id2word)
+    pdb.set_trace()
     recipients = tupl.recipients
     # if sender already have an address boo update it
     if sender in address_books:
@@ -110,7 +113,7 @@ def predict(pd_dataset, k=10):
         mid = tupl.mid
         sender = tupl.sender
 
-        topic_score = topic_score = get_lda_score(tupl.body, lda, nlp, id2word)
+        topic_score = get_lda_score(tupl.body, lda, nlp, id2word)
 
         # merge list with frequencies into a single dic
         merge_dic = {}

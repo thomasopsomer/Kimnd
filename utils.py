@@ -79,6 +79,7 @@ re9 = re.compile('.*orwarded.*')
 re10 = re.compile('From.*|Sent.*|cc.*|Subject.*|Embedded.*|http.*|\w+\.\w+|.*\d\d/\d\d/\d\d\d\d.*')
 re11 = re.compile(' [\d:;,.]+ ')
 
+
 # Replace punctuation in words by spaces
 def replace_punct(s):
     for c in string.punctuation:
@@ -114,6 +115,13 @@ def preprocess_mail_body(txt, nlp):
     # remove punctuation
     txt = replace_punct(txt)
 
+    # parenthesis
+    txt = txt.replace(')', ' ').replace('(', ' ').replace('"', '')
+
+    # remove url
+    url_exp = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    txt = re.sub(url_exp, '', txt)
+
     # split sentences
     sentences = sent_tokenize(txt)
     # tokenize + lemmatize + filter ?
@@ -125,7 +133,7 @@ def preprocess_mail_body(txt, nlp):
                 not tok.like_num and not tok.is_space and
                 not tok.like_url and len(tok) > 1 and
                 "**" not in tok.orth_ and
-                not (tok.orth_.startswith("_")) and
-                not (tok.orth_.startswith("-"))):
+                    not (tok.orth_.startswith("_")) and
+                    not (tok.orth_.startswith("-"))):
                 bow.append(tok.lemma_)
     return bow
