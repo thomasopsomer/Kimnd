@@ -9,6 +9,7 @@ from gensim import corpora, models
 import spacy
 
 from utils import load_dataset, preprocess_mail_body
+from average_precision import mapk
 
 nlp = spacy.load('en', parser=False)
 
@@ -127,7 +128,14 @@ def predict(pd_dataset, k=10):
     return topic_freq_pred
 
 
-topic_freq_pred = predict(testset)
+topic_freq_pred = predict(dataset)
+
+predicted = [preds for mid, preds in topic_freq_pred]
+
+mids = [mid for mid, preds in topic_freq_pred]
+actual = dataset[dataset['mid'] == mids]['recipients'].tolist()
+
+print mapk(actual, predicted)
 
 #################################################
 # write predictions in proper format for Kaggle #

@@ -28,7 +28,7 @@ def clean_text(text):
 
 
 def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
-                nb_topics=10, alpha=.0025):
+                nb_topics=15, alpha=.0025):
     print "Loading data"
     training_info = pd.read_csv(path.join(data_path, "training_info.csv"),
                                 sep=',', header=0).set_index("mid")
@@ -48,6 +48,7 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
         print "Preprocessing mails"
         texts = texts.apply(clean_text)
         texts = texts.apply(preprocess_mail_body, args=(nlp,))
+        #import pdb; pdb.set_trace()
         texts = list(texts)
         # for i, doc in enumerate(training_info["body"]):
         #     texts.append(preprocess_mail_body(doc, nlp))
@@ -55,7 +56,7 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
         #         print "{:d} document processed".format(i)
         print "Creating id2word and corpus"
         id2word = corpora.Dictionary(texts)
-        id2word.filter_extremes(no_below=5, no_above=0.5, keep_n=100000)
+        id2word.filter_extremes(no_below=4, no_above=0.2, keep_n=100000)
         id2word.save_as_text(output_path + "_dic")
 
         corpus = [id2word.doc2bow(text) for text in texts]
