@@ -35,7 +35,8 @@ def get_frequencies_outgoing(df_flat, time):
     frequencies = frequencies_recipient.merge(frequencies_all, how="inner", on="sender")
     # OUT_ratio is the desired final feature
     frequencies["OUT_ratio"] = frequencies["OUT_cnt_mess_recipient"] / frequencies["OUT_cnt_mess_all"]
-    frequencies = frequencies.rename(columns = {"sender":"user"}) # user as in the paper
+    frequencies = frequencies.rename(columns = {"sender":"user", "recipient": "contact"}) # user and contact as in the paper
+    frequencies = frequencies[["user", "contact", "OUT_ratio"]]
     return frequencies
 
 ### 2. Incoming Message Percentage ###
@@ -51,7 +52,8 @@ def get_frequencies_incoming(df_flat, time):
     frequencies_all.columns = ["recipient", "IN_cnt_mess_all"]
     frequencies = frequencies_sender.merge(frequencies_all, how="inner", on="recipient")
     frequencies["IN_ratio"] = frequencies["IN_cnt_mess_sender"] / frequencies["IN_cnt_mess_all"]
-    frequencies = frequencies.rename(columns = {"recipient":"user"})
+    frequencies = frequencies.rename(columns = {"recipient":"user", "sender": "contact"})
+    frequencies = frequencies[["user", "contact", "IN_ratio"]]
     return frequencies
 
 
@@ -93,7 +95,9 @@ def get_more_recent_perc_out(df_flat, time):
 	more_recents = more_recents.merge(cnt_all_mess, how="inner", on="sender")
 	# The desired feature
 	more_recents["OUT_ratio_recent"] = more_recents["OUT_cnt_mess_recent"] / (alpha*more_recents["OUT_cnt_mess_all"])
-	more_recents = more_recents.rename(columns = {"sender":"user"})
+	more_recents = more_recents.rename(columns = {"sender":"user", "recipient": "contact", "last_time": "OUT_last_time"})
+	# Take only the columns that we want
+	more_recents = more_recents[["user", "contact", "OUT_last_time", "OUT_ratio_recent"]]
 	return more_recents
 
 
@@ -117,7 +121,8 @@ def get_more_recent_perc_in(df_flat, time):
 	cnt_all_mess.columns = ["recipient", "IN_cnt_mess_all"]
 	more_recents = more_recents.merge(cnt_all_mess, how="inner", on="recipient")
 	more_recents["IN_ratio_recent"] = more_recents["IN_cnt_mess_recent"] / (alpha*more_recents["IN_cnt_mess_all"])
-	more_recents = more_recents.rename(columns = {"recipient":"user"})
+	more_recents = more_recents.rename(columns = {"recipient":"user", "sender": "contact", "last_time": "IN_last_time"})
+	more_recents = more_recents[["user", "contact", "IN_last_time", "IN_ratio_recent"]]
 	return more_recents
 
 
@@ -132,18 +137,24 @@ def get_features_out_in(df_flat, time):
 	print "More Recent Incoming Percentage"
 	recent_in = get_more_recent_perc_in(df_flat, time)
 	# Join all the DataFrames
-	time_features = frequencies_out.merge(frequencies_in, how="outer", on="user")
-	time_features = time_features.merge(recent_out, how="outer", on="user")
-	time_features = time_features.merge(recent_in, how="outer", on="user")
+    outgoing = frequencies_out.merge(recent_out, how="inner", on=["user", "contact"])
+	incoming = frequencies_in.merge(recent_in, how="inner", on=["user", "contact"])
+	time_features = outgoing.merge(incoming, how="outer", on=["user", "contact"])
 	print "Processing the features"
-	time_features["OUT_ratio"] = time_features["OUT_ratio"].fillna(0) # If this column is NULL, this means the user never sent a mail
-	time_features["IN_ratio"] = time_features["IN_ratio"].fillna(0) # If this column is NULL, this means the user never receveid a mail
-	time_features["OUT_ratio_recent"] = time_features["OUT_ratio_recent"].fillna(0) # If this column is NULL, this means the user never sent a mail
-	time_features["IN_ratio_recent"] = time_features["IN_ratio_recent"].fillna(0) # If this column is NULL, this means the user never receveid a mail
-	# If the  user never sent a mail, set OUT_ratio_recent to 1
-	# IF the user never sent a mail, set IN_ratio_recent to 1
-	time_features.loc[time_features["OUT_ratio"]==0, "OUT_ratio_recent"] = 1
-	time_features.loc[time_features["IN_ratio"]==0, "IN_ratio_recent"] = 1
+	# List of all senders and all recipients
+	senders = df_flat.sender.unique()
+	recipients = df_flat.recipient.unique()
+	# If the  user never sent a mail, set OUT_ratio_recent to 1 and OUT_ratio to -1
+	time_features.loc[~time_features["user"].isin(senders), "OUT_ratio"] = -1
+	time_features.loc[~time_features["user"].isin(senders), "OUT_ratio_recent"] = 1
+	# If the user never received a mail, set IN_ratio_recent to 1 and IN_ratio to -1
+	time_features.loc[~time_features["user"].isin(recipients), "IN_ratio"] = -1
+	time_features.loc[~time_features["user"].isin(recipients), "IN_ratio_recent"] = 1
+	# If we have a NULL value, this means that the user never sent/received a mail to/from this contact
+	time_features["OUT_ratio"] = time_features["OUT_ratio"].fillna(0)
+	time_features["OUT_ratio_recent"] = time_features["OUT_ratio_recent"].fillna(0)
+	time_features["IN_ratio"] = time_features["IN_ratio"].fillna(0)
+	time_features["IN_ratio_recent"] = time_features["IN_ratio_recent"].fillna(0)
 	time_features["time"] = time
 	return time_features
 
@@ -174,3 +185,4 @@ if __name__=="__main__":
 	print "Time features extraction"
 	time = 500000
 	time_features = get_features_out_in(train_df_flat, time)
+	time_features.to_csv("time_features.csv", sep=",", index=False)
