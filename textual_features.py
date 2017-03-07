@@ -4,6 +4,15 @@ from utils import flatmap
 from gow import top30_similarity
 
 
+def get_global_text_features(texts):
+    """from list of token returns idf (dict), a gensim dictionary, and
+    the average length"""
+    id2word = corpora.Dictionary(texts)
+    id2word.filter_extremes(no_below=4, no_above=0.2, keep_n=100000)
+    idf, avg_len = compute_idf(texts, id2word)
+    return idf, id2word, avg_len
+
+
 def incoming_text_similarity(dataset, m, user):
     # Dataset containing all previous emails sent to person 'user'
     dataset_to_rec = dataset[dataset.recipient == user]

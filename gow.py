@@ -163,7 +163,7 @@ def top30_similarity(message, df_user_messages, texts):
     twidf_message = tw_idf(message, idf, id2word)
     df_user_messages['score'] = np.zeros(len(df_user_messages))
     for ind, row in df_user_messages.iterrows():
-        twidf_user_mess = tw_idf(row['body'], idf, id2word)
+        twidf_user_mess = tw_idf(row['tokens'], idf, id2word)
         df_user_messages.iloc[ind]['score'] = cosine_similarity(twidf_message,
                                                                 twidf_user_mess)
     return df_user_messages.nlargest(5, 'score')

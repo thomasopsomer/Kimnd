@@ -5,6 +5,8 @@ import numpy as np
 from collections import Counter
 import utils
 
+from textual_features import *
+
 
 # Get the address book of each user
 def address_book_users(df):
@@ -158,11 +160,17 @@ if __name__=="__main__":
 
     print "Loading the files"
     dataset_path = "data/training_set.csv"
+    dataset_path2 = "data/test_set.csv"
     mail_path = "data/training_info.csv"
+    mail_path2 = "data/test_info.csv"
 
     train_df = utils.load_dataset(dataset_path, mail_path, train=True, flat=True)
     train_df = utils.preprocess_bodies(train_df, type="train")
 
+    test_df = utils.load_dataset(dataset_path2, mail_path2, train=False)
+    test_df = utils.preprocess_bodies(test_df, type="test")
+
+    idf, id2word, avg_len = get_global_text_features(list(train_df["tokens"]))
     #####################
     # Temporal features #
     #####################
