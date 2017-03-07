@@ -82,7 +82,7 @@ def get_more_recent_perc_out(df_flat, time):
 	# Apply the function get_cnt_mail_out row-wise 
 	# to take into account each possible combination of (user, sender)
 	more_recents["OUT_cnt_mess_recent"] = more_recents.apply(lambda row: 
-		get_cnt_mail_out(train_df_flat, row["sender"], row["last_time"], time), axis=1)
+		get_cnt_mail_out(df_flat, row["sender"], row["last_time"], time), axis=1)
 	# Count the total messages sent by the sender
 	cnt_all_mess = pd.DataFrame(df_flat.groupby("sender").mid.nunique()).reset_index()
 	cnt_all_mess.columns = ["sender", "OUT_cnt_mess_all"]
@@ -111,7 +111,7 @@ def get_more_recent_perc_in(df_flat, time):
 	alpha = 2
 	more_recents = get_last_time(df_flat)
 	more_recents["IN_cnt_mess_recent"] = more_recents.apply(lambda row: 
-		get_cnt_mail_in(train_df_flat, row["recipient"], row["last_time"], time), axis=1)
+		get_cnt_mail_in(df_flat, row["recipient"], row["last_time"], time), axis=1)
 	cnt_all_mess = pd.DataFrame(df_flat.groupby("recipient").mid.nunique()).reset_index()
 	cnt_all_mess.columns = ["recipient", "IN_cnt_mess_all"]
 	more_recents = more_recents.merge(cnt_all_mess, how="inner", on="recipient")
@@ -132,7 +132,7 @@ def get_features_out_in(df_flat, time):
 	print "More Recent Incoming Percentage"
 	recent_in = get_more_recent_perc_in(df_flat, time)
 	# Join all the DataFrames
-    outgoing = frequencies_out.merge(recent_out, how="inner", on=["user", "contact"])
+	outgoing = frequencies_out.merge(recent_out, how="inner", on=["user", "contact"])
 	incoming = frequencies_in.merge(recent_in, how="inner", on=["user", "contact"])
 	time_features = outgoing.merge(incoming, how="outer", on=["user", "contact"])
 	print "Processing the features"
