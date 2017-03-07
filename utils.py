@@ -52,13 +52,13 @@ def load_dataset(dataset_path, mail_path, train=True, flat=False):
             subset=["sender", "body", "date", "recipients"])
         # split recipients into list
         set_df.recipients = set_df.recipients.str.split()
+        # clean recipients
+        set_df["recipients"] = set_df["recipients"].apply(clean_recipients)
+        #
+        if flat:
+            set_df = flatmap(set_df, "recipients", "recipient", np.string0)
     #
     set_df.date = pd.to_datetime(set_df.date)
-    # clean recipients
-    set_df["recipients"] = set_df["recipients"].apply(clean_recipients)
-    #
-    if flat:
-        set_df = flatmap(set_df, "recipients", "recipient", np.string0)
     return set_df
 
 
