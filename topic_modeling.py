@@ -28,7 +28,7 @@ def clean_text(text):
 
 
 def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
-                nb_topics=15, alpha=.0025):
+                nb_topics=4444, alpha=.0025):
     print "Loading data"
     training_info = pd.read_csv(path.join(data_path, "training_info.csv"),
                                 sep=',', header=0).set_index("mid")

@@ -5,13 +5,14 @@ import operator
 import igraph
 import copy
 import time
+import math
 import numpy as np
 from gensim import corpora
 from sklearn.metrics.pairwise import cosine_similarity
 import utils
 
 
-def tw_idf(text, idf, id2word, type="closeness", b=0.003):
+def tw_idf(text, idf, id2word, avg_len, type="closeness", b=0.003, window=3):
 
     # build the graph
     graph = terms_to_graph(text, window)
@@ -23,15 +24,16 @@ def tw_idf(text, idf, id2word, type="closeness", b=0.003):
     feature_row = np.zeros(len(idf))
     # for each term compute its tw
     for term in set(text):
-        index = id2word.token2id(term)
+        if term not in id2word.token2id:
+            continue
+        index = id2word.token2id[term]
         idf_term = idf[term]
         denominator = (1 - b + (b * (float(doc_len) / avg_len)))
         metrics_term = [metric[1]
                         for metric in metrics if metric[0] == term][0]
-
         # store TW-IDF values
         feature_row[index] = (
-            float(metrics_term[0]) / denominator) * idf_term
+            float(metrics_term) / denominator) * idf_term
     return feature_row
 
 
@@ -43,7 +45,7 @@ def compute_idf(texts, id2word):
     all_unique_terms = id2word.keys()
 
     # store IDF values in dictionary
-    n_doc = id2word.num_doc
+    n_doc = id2word.num_docs
 
     idf = copy.deepcopy(id2word.token2id)
     counter = 0
@@ -56,7 +58,8 @@ def compute_idf(texts, id2word):
         counter += 1
         if counter % 1e3 == 0:
             print counter, "terms have been processed"
-    return idf
+    avg_len = sum(len(terms) for terms in texts) / len(texts)
+    return idf, avg_len
 
 
 def terms_to_graph(terms, window_size):
