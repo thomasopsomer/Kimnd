@@ -171,13 +171,10 @@ def top30_similarity(message, df_user_messages, texts):
 
 if __name__=="__main__":
 
-    print "Loading the files"
-    dataset_path = "data/training_set.csv"
-    mail_path = "data/training_info.csv"
-
     train_df = utils.load_dataset(dataset_path, mail_path, train=True)
-    message = train_df['body'][0]
+
     df_user_messages = train_df.head(10)
-    texts = train_df['body'].tolist()
+    texts = preprocess_bodies(train_df)
+    message = texts[0]
     import pdb; pdb.set_trace()
     result = top30_similarity(message, df_user_messages, texts)
