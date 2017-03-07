@@ -7,6 +7,7 @@ from gensim.utils import any2unicode, deaccent
 import re
 from spacy import en
 import string
+import numpy as np
 
 # utils for loading and preprocessing dataset
 
@@ -49,6 +50,7 @@ def load_dataset(dataset_path, mail_path, train=True):
     #
     set_df.date = pd.to_datetime(set_df.date)
     #
+    set_df = flatmap(set_df, "recipients", "recipient", np.string0)
     return set_df
 
 

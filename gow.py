@@ -6,6 +6,9 @@ import igraph
 import copy
 import time
 import numpy as np
+from gensim import corpora
+from sklearn.metrics.pairwise import cosine_similarity
+import utils
 
 
 def tw_idf(text, idf, id2word, type="closeness", b=0.003):
@@ -119,7 +122,7 @@ def terms_to_graph(terms, window_size):
     g.es['weight'] = from_to.values()  # based on co-occurence within sliding w
     g.vs['weight'] = g.strength(weights=from_to.values())  # weighted degree
 
-    return(g)
+    return g
 
 
 def compute_node_centrality(graph, type="degree"):
@@ -144,23 +147,34 @@ def compute_node_centrality(graph, type="degree"):
     if type == "w_closeness":
         results = graph.closeness(normalized=True,
                                   weights=graph.es["weight"])
-        results = [round(value, 5) for value in resultss]
+        resultdats = [round(value, 5) for value in resultss]
 
-    return(zip(graph.vs["name"], results))
-
-
-def print_top10(feature_names, clf, class_labels):
-    """Prints features with the highest coefficient values, per class"""
-    # coef stores the weights of each feature (in unique term), for each class
-    for i, class_label in enumerate(class_labels):
-        top10 = np.argsort(clf.coef_[i])[-10:]
-        print("%s: %s" % (class_label,
-                          " ".join(feature_names[j] for j in top10)))
+    return zip(graph.vs["name"], results)
 
 
-def print_bot10(feature_names, clf, class_labels):
-    """Prints features with the lowest coefficient values, per class"""
-    for i, class_label in enumerate(class_labels):
-        bot10 = np.argsort(clf.coef_[i])[0:9]
-        print("%s: %s" % (class_label,
-                          " ".join(feature_names[j] for j in bot10)))
+def top30_similarity(message, df_user_messages, texts):
+    id2word = corpora.Dictionary(texts)
+    id2word.filter_extremes(no_below=4, no_above=0.2, keep_n=100000)
+    idf = compute_idf(texts, id2word)
+    # Compute tw-idf for 'messages' and 'user_messages'
+    twidf_message = tw_idf(message, idf, id2word)
+    df_user_messages['score'] = np.zeros(len(df_user_messages))
+    for ind, row in df_user_messages.iterrows():
+        twidf_user_mess = tw_idf(row['body'], idf, id2word)
+        df_user_messages.iloc[ind]['score'] = cosine_similarity(twidf_message,
+                                                                twidf_user_mess)
+    return df_user_messages.nlargest(5, 'score')
+
+
+if __name__=="__main__":
+
+    print "Loading the files"
+    dataset_path = "data/training_set.csv"
+    mail_path = "data/training_info.csv"
+
+    train_df = utils.load_dataset(dataset_path, mail_path, train=True)
+    message = train_df['body'][0]
+    df_user_messages = train_df.head(10)
+    texts = train_df['body'].tolist()
+    import pdb; pdb.set_trace()
+    result = top30_similarity(message, df_user_messages, texts)
