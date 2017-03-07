@@ -80,28 +80,28 @@ def is_forward(txt):
 # re_fw_regex = re.compile(re_fw_pattern)
 
 # some dude's regexes
-# re0 = re.compile('>')
-# re1 = re.compile('(Message-ID(.*?\n)*X-FileName.*?\n)|'
-#                  '(To:(.*?\n)*?Subject.*?\n)|'
-#                  '(< (Message-ID(.*?\n)*.*?X-FileName.*?\n))')
-# re2 = re.compile('(.+)@(.+)')  # Remove emails
-# re3 = re.compile('\s(-----)(.*?)(-----)\s', re.DOTALL)
-# re4 = re.compile('''\s(\*\*\*\*\*)(.*?)(\*\*\*\*\*)\s''', re.DOTALL)
-# re5 = re.compile('\s(_____)(.*?)(_____)\s', re.DOTALL)
-# re6 = re.compile('\n( )*-.*')
-# re7 = re.compile('\n( )*\d.*')
-# re8 = re.compile(
-#     '(\n( )*[\w]+($|( )*\n))|(\n( )*(\w)+(\s)+(\w)+(( )*\n)|$)|(\n( )*(\w)+(\s)+(\w)+(\s)+(\w)+(( )*\n)|$)')
-# re9 = re.compile('.*orwarded.*')
-# re10 = re.compile(
-#     'From.*|Sent.*|cc.*|Subject.*|Embedded.*|http.*|\w+\.\w+|.*\d\d/\d\d/\d\d\d\d.*')
-# re11 = re.compile(' [\d:;,.]+ ')
+re0 = re.compile('>')
+re1 = re.compile('(Message-ID(.*?\n)*X-FileName.*?\n)|'
+                 '(To:(.*?\n)*?Subject.*?\n)|'
+                 '(< (Message-ID(.*?\n)*.*?X-FileName.*?\n))')
+re2 = re.compile('(.+)@(.+)')  # Remove emails
+re3 = re.compile('\s(-----)(.*?)(-----)\s', re.DOTALL)
+re4 = re.compile('''\s(\*\*\*\*\*)(.*?)(\*\*\*\*\*)\s''', re.DOTALL)
+re5 = re.compile('\s(_____)(.*?)(_____)\s', re.DOTALL)
+re6 = re.compile('\n( )*-.*')
+re7 = re.compile('\n( )*\d.*')
+re8 = re.compile(
+    '(\n( )*[\w]+($|( )*\n))|(\n( )*(\w)+(\s)+(\w)+(( )*\n)|$)|(\n( )*(\w)+(\s)+(\w)+(\s)+(\w)+(( )*\n)|$)')
+re9 = re.compile('.*orwarded.*')
+re10 = re.compile(
+    'From.*|Sent.*|cc.*|Subject.*|Embedded.*|http.*|\w+\.\w+|.*\d\d/\d\d/\d\d\d\d.*')
+re11 = re.compile(' [\d:;,.]+ ')
 
 
 # Replace punctuation in words by spaces
 def replace_punct(s):
     for c in string.punctuation:
-        s = s.replace(c, "")
+        s = s.replace(c, " ")
     return s
 
 
@@ -114,24 +114,24 @@ def preprocess_mail_body(txt, nlp):
     # to unicode & get rid of accent
     txt = deaccent(any2unicode(txt))
     # split according to reply forward (get rid of "entête")
-
-    # txt = "\n".join(re_fw_regex.split(txt))
-    # txt = txt.replace(">", " ")
-    # txt = re.sub(re0, ' ', txt)
-    # txt = re.sub(re1, ' ', txt)
-    # txt = re.sub(re2, ' ', txt)
-    # txt = re.sub(re3, ' ', txt)
-    # txt = re.sub(re4, ' ', txt)
-    # txt = re.sub(re5, ' ', txt)
-    # txt = re.sub(re6, ' ', txt)
-    # txt = re.sub(re7, ' ', txt)
-    # txt = re.sub(re8, ' ', txt)
-    # txt = re.sub(re9, ' ', txt)
-    # txt = re.sub(re10, ' ', txt)
-    # txt = re.sub(re11, ' ', txt)
-
     # remove punctuation
     txt = replace_punct(txt)
+    # txt = "\n".join(re_fw_regex.split(txt))
+    # txt = txt.replace(">", " ")
+    txt = re.sub(re0, ' ', txt)
+    txt = re.sub(re1, ' ', txt)
+    txt = re.sub(re2, ' ', txt)
+    txt = re.sub(re3, ' ', txt)
+    txt = re.sub(re4, ' ', txt)
+    txt = re.sub(re5, ' ', txt)
+    txt = re.sub(re6, ' ', txt)
+    txt = re.sub(re7, ' ', txt)
+    txt = re.sub(re8, ' ', txt)
+    txt = re.sub(re9, ' ', txt)
+    txt = re.sub(re10, ' ', txt)
+    txt = re.sub(re11, ' ', txt)
+
+
 
     # parenthesis
     txt = txt.replace(')', ' ').replace('(', ' ').replace('"', '')
