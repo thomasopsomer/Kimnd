@@ -100,7 +100,7 @@ def replace_punct(s):
     return s
 
 
-def bow_mail_body(txt, nlp):
+def preprocess_mail_body(txt, nlp):
     """
     args:
         - txt: raw text
