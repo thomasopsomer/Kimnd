@@ -13,6 +13,33 @@ from gensim.utils import any2unicode, deaccent
 
 # utils for loading and preprocessing dataset
 
+# Parallelization
+def parallelize_dataframe(df, func, num_cores, **kwargs):
+    """
+    Function to parallelize a function over rows of a dataset :)
+    """
+    df_split = np.array_split(df, num_cores)
+    pool = mp.Pool(num_cores)
+    partial_f = partial(func, **kwargs)
+    try:
+        print 'starting the pool map'
+        df = pd.concat(pool.map(partial_f, df_split))
+        pool.close()
+        print 'pool map complete'
+    except KeyboardInterrupt:
+        print 'got ^C while pool mapping, terminating the pool'
+        pool.terminate()
+        print 'pool is terminated'
+    except Exception, e:
+        print 'got exception: %r, terminating the pool' % (e,)
+        pool.terminate()
+        print 'pool is terminated'
+    finally:
+        print 'joining pool processes'
+        pool.join()
+        print 'join complete'
+    print 'the end'
+    return df
 
 # To clean recipients
 def clean_recipients(row):
@@ -156,6 +183,7 @@ def preprocess_mail_body(txt, nlp):
                     not (tok.orth_.startswith("-"))):
                 bow.append(tok.lemma_)
     return bow
+
 
 
 def preprocess_bodies(dataset, type="test"):
