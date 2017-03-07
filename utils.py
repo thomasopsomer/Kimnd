@@ -65,7 +65,7 @@ def load_dataset(dataset_path, mail_path, train=True, flat=False):
         set_df = set_df.drop_duplicates(
             subset=["sender", "body", "date", "recipients"])
         # split recipients into list
-        set_df.recipients = set_df.recipients.str.split()
+        set_df.recipients = set_df.recipients.map(split_emails)
         # clean recipients
 
         def clean_recipients(row):
@@ -79,6 +79,22 @@ def load_dataset(dataset_path, mail_path, train=True, flat=False):
     set_df.date = pd.to_datetime(set_df.date)
     set_df.index = range(len(set_df.index))
     return set_df
+
+
+def split_emails(string):
+    res = []
+    tmp = string.split()
+    keep = ""
+    for part in tmp:
+        if "@" in part:
+            if not keep:
+                res.append(part)
+            else:
+                res.append(keep + part)
+                keep = ""
+        else:
+            keep += part
+    return res
 
 
 # Preprocessing of email content to extract Features and Cleaned text
