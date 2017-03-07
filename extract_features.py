@@ -9,12 +9,12 @@ import utils
 # Get the address book of each user
 def address_book_users(df):
     book = df.groupby("sender").recipients.sum()
-    return 
+    return
 
 
 ### 1. Outgoing Message Percentage ###
 def get_frequencies_outgoing(df_flat, time):
-	# Take only the mails sent before time
+    # Take only the mails sent before time
     df_flat = df_flat[df_flat["time"]<time]
     if df_flat.empty:
         return pd.DataFrame([])
@@ -36,8 +36,8 @@ def get_frequencies_outgoing(df_flat, time):
 
 ### 2. Incoming Message Percentage ###
 def get_frequencies_incoming(df_flat, time):
-	# Same operations as the previous function
-	# This time, the user is the recipient
+    # Same operations as the previous function
+    # This time, the user is the recipient
     df_flat = df_flat[df_flat["time"]<time]
     if df_flat.empty:
         return pd.DataFrame([])
@@ -54,17 +54,17 @@ def get_frequencies_incoming(df_flat, time):
 
 ### 3. More Recent Outgoing Percentage ###
 def get_last_time(df_flat):
-	# Get last time email was sent to a recipient from a sender
-	# At the end we have one row for each couple (sender, recipient) 
-	# and the value for the last time a mail was sent between them
+    # Get last time email was sent to a recipient from a sender
+    # At the end we have one row for each couple (sender, recipient)
+    # and the value for the last time a mail was sent between them
     time_last_sent = df_flat.groupby(["sender", "recipient"]).time.max().reset_index()
     time_last_sent.columns = ["sender", "recipient", "last_time"]
     return time_last_sent
 
 
 def get_cnt_mail_out(df_flat, sender, begin, end):
-	# Given a sender and a period of time [begin, end] count the mails sent within this period
-	# Filter only the mails sent in a time t between begin and end
+    # Given a sender and a period of time [begin, end] count the mails sent within this period
+    # Filter only the mails sent in a time t between begin and end
     df_flat = df_flat[df_flat["time"]>=begin]
     df_flat = df_flat[df_flat["time"]<end]
     if df_flat.empty:
@@ -75,25 +75,25 @@ def get_cnt_mail_out(df_flat, sender, begin, end):
 
 
 def get_more_recent_perc_out(df_flat, time):
-	# Computes the More Recent Outgoing Percentage as in the paper
-	alpha = 2
-	# For each couple (user, sender) extract the last time a mail was sent between them
-	more_recents = get_last_time(df_flat)
-	# Apply the function get_cnt_mail_out row-wise 
-	# to take into account each possible combination of (user, sender)
-	more_recents["OUT_cnt_mess_recent"] = more_recents.apply(lambda row: 
-		get_cnt_mail_out(df_flat, row["sender"], row["last_time"], time), axis=1)
-	# Count the total messages sent by the sender
-	cnt_all_mess = pd.DataFrame(df_flat.groupby("sender").mid.nunique()).reset_index()
-	cnt_all_mess.columns = ["sender", "OUT_cnt_mess_all"]
-	# Perform an inner join on the column "sender" between the 2 datasets
-	more_recents = more_recents.merge(cnt_all_mess, how="inner", on="sender")
-	# The desired feature
-	more_recents["OUT_ratio_recent"] = more_recents["OUT_cnt_mess_recent"] / (alpha*more_recents["OUT_cnt_mess_all"])
-	more_recents = more_recents.rename(columns = {"sender":"user", "recipient": "contact", "last_time": "OUT_last_time"})
-	# Take only the columns that we want
-	more_recents = more_recents[["user", "contact", "OUT_last_time", "OUT_ratio_recent"]]
-	return more_recents
+    # Computes the More Recent Outgoing Percentage as in the paper
+    alpha = 2
+    # For each couple (user, sender) extract the last time a mail was sent between them
+    more_recents = get_last_time(df_flat)
+    # Apply the function get_cnt_mail_out row-wise
+    # to take into account each possible combination of (user, sender)
+    more_recents["OUT_cnt_mess_recent"] = more_recents.apply(lambda row:
+        get_cnt_mail_out(df_flat, row["sender"], row["last_time"], time), axis=1)
+    # Count the total messages sent by the sender
+    cnt_all_mess = pd.DataFrame(df_flat.groupby("sender").mid.nunique()).reset_index()
+    cnt_all_mess.columns = ["sender", "OUT_cnt_mess_all"]
+    # Perform an inner join on the column "sender" between the 2 datasets
+    more_recents = more_recents.merge(cnt_all_mess, how="inner", on="sender")
+    # The desired feature
+    more_recents["OUT_ratio_recent"] = more_recents["OUT_cnt_mess_recent"] / (alpha*more_recents["OUT_cnt_mess_all"])
+    more_recents = more_recents.rename(columns = {"sender":"user", "recipient": "contact", "last_time": "OUT_last_time"})
+    # Take only the columns that we want
+    more_recents = more_recents[["user", "contact", "OUT_last_time", "OUT_ratio_recent"]]
+    return more_recents
 
 
 ### 4. More Recent Incoming Percentage ###
@@ -108,75 +108,75 @@ def get_cnt_mail_in(df_flat, recipient, begin, end):
 
 
 def get_more_recent_perc_in(df_flat, time):
-	alpha = 2
-	more_recents = get_last_time(df_flat)
-	more_recents["IN_cnt_mess_recent"] = more_recents.apply(lambda row: 
-		get_cnt_mail_in(df_flat, row["recipient"], row["last_time"], time), axis=1)
-	cnt_all_mess = pd.DataFrame(df_flat.groupby("recipient").mid.nunique()).reset_index()
-	cnt_all_mess.columns = ["recipient", "IN_cnt_mess_all"]
-	more_recents = more_recents.merge(cnt_all_mess, how="inner", on="recipient")
-	more_recents["IN_ratio_recent"] = more_recents["IN_cnt_mess_recent"] / (alpha*more_recents["IN_cnt_mess_all"])
-	more_recents = more_recents.rename(columns = {"recipient":"user", "sender": "contact", "last_time": "IN_last_time"})
-	more_recents = more_recents[["user", "contact", "IN_last_time", "IN_ratio_recent"]]
-	return more_recents
+    alpha = 2
+    more_recents = get_last_time(df_flat)
+    more_recents["IN_cnt_mess_recent"] = more_recents.apply(lambda row:
+        get_cnt_mail_in(df_flat, row["recipient"], row["last_time"], time), axis=1)
+    cnt_all_mess = pd.DataFrame(df_flat.groupby("recipient").mid.nunique()).reset_index()
+    cnt_all_mess.columns = ["recipient", "IN_cnt_mess_all"]
+    more_recents = more_recents.merge(cnt_all_mess, how="inner", on="recipient")
+    more_recents["IN_ratio_recent"] = more_recents["IN_cnt_mess_recent"] / (alpha*more_recents["IN_cnt_mess_all"])
+    more_recents = more_recents.rename(columns = {"recipient":"user", "sender": "contact", "last_time": "IN_last_time"})
+    more_recents = more_recents[["user", "contact", "IN_last_time", "IN_ratio_recent"]]
+    return more_recents
 
 
 ### 5. Combining all features ###
 def get_features_out_in(df_flat, time):
-	print "Outgoing Message Percentage"
-	frequencies_out = get_frequencies_outgoing(df_flat, time)
-	print "Incoming Message Percentage"
-	frequencies_in = get_frequencies_incoming(df_flat, time)
-	print "More Recent Outgoing Percentage"
-	recent_out = get_more_recent_perc_out(df_flat, time)
-	print "More Recent Incoming Percentage"
-	recent_in = get_more_recent_perc_in(df_flat, time)
-	# Join all the DataFrames
-	outgoing = frequencies_out.merge(recent_out, how="inner", on=["user", "contact"])
-	incoming = frequencies_in.merge(recent_in, how="inner", on=["user", "contact"])
-	time_features = outgoing.merge(incoming, how="outer", on=["user", "contact"])
-	print "Processing the features"
-	# List of all senders and all recipients
-	senders = df_flat.sender.unique()
-	recipients = df_flat.recipient.unique()
-	# If the  user never sent a mail, set OUT_ratio_recent to 1 and OUT_ratio to -1
-	time_features.loc[~time_features["user"].isin(senders), "OUT_ratio"] = -1
-	time_features.loc[~time_features["user"].isin(senders), "OUT_ratio_recent"] = 1
-	# If the user never received a mail, set IN_ratio_recent to 1 and IN_ratio to -1
-	time_features.loc[~time_features["user"].isin(recipients), "IN_ratio"] = -1
-	time_features.loc[~time_features["user"].isin(recipients), "IN_ratio_recent"] = 1
-	# If we have a NULL value, this means that the user never sent/received a mail to/from this contact
-	time_features["OUT_ratio"] = time_features["OUT_ratio"].fillna(0)
-	time_features["OUT_ratio_recent"] = time_features["OUT_ratio_recent"].fillna(0)
-	time_features["IN_ratio"] = time_features["IN_ratio"].fillna(0)
-	time_features["IN_ratio_recent"] = time_features["IN_ratio_recent"].fillna(0)
-	time_features["time"] = time
-	return time_features
+    print "Outgoing Message Percentage"
+    frequencies_out = get_frequencies_outgoing(df_flat, time)
+    print "Incoming Message Percentage"
+    frequencies_in = get_frequencies_incoming(df_flat, time)
+    print "More Recent Outgoing Percentage"
+    recent_out = get_more_recent_perc_out(df_flat, time)
+    print "More Recent Incoming Percentage"
+    recent_in = get_more_recent_perc_in(df_flat, time)
+    # Join all the DataFrames
+    outgoing = frequencies_out.merge(recent_out, how="inner", on=["user", "contact"])
+    incoming = frequencies_in.merge(recent_in, how="inner", on=["user", "contact"])
+    time_features = outgoing.merge(incoming, how="outer", on=["user", "contact"])
+    print "Processing the features"
+    # List of all senders and all recipients
+    senders = df_flat.sender.unique()
+    recipients = df_flat.recipient.unique()
+    # If the  user never sent a mail, set OUT_ratio_recent to 1 and OUT_ratio to -1
+    time_features.loc[~time_features["user"].isin(senders), "OUT_ratio"] = -1
+    time_features.loc[~time_features["user"].isin(senders), "OUT_ratio_recent"] = 1
+    # If the user never received a mail, set IN_ratio_recent to 1 and IN_ratio to -1
+    time_features.loc[~time_features["user"].isin(recipients), "IN_ratio"] = -1
+    time_features.loc[~time_features["user"].isin(recipients), "IN_ratio_recent"] = 1
+    # If we have a NULL value, this means that the user never sent/received a mail to/from this contact
+    time_features["OUT_ratio"] = time_features["OUT_ratio"].fillna(0)
+    time_features["OUT_ratio_recent"] = time_features["OUT_ratio_recent"].fillna(0)
+    time_features["IN_ratio"] = time_features["IN_ratio"].fillna(0)
+    time_features["IN_ratio_recent"] = time_features["IN_ratio_recent"].fillna(0)
+    time_features["time"] = time
+    return time_features
 
 
 if __name__=="__main__":
 
-	print "Loading the files"
-	dataset_path = "data/training_set.csv"
-	mail_path = "data/training_info.csv"
+    print "Loading the files"
+    dataset_path = "data/training_set.csv"
+    mail_path = "data/training_info.csv"
 
-	train_df = utils.load_dataset(dataset_path, mail_path, train=True, flat=True)
+    train_df = utils.load_dataset(dataset_path, mail_path, train=True, flat=True)
+    train_df = utils.preprocess_bodies(train_df, type="train")
+
+    #####################
+    # Temporal features #
+    #####################
+
+    print "Handling time"
+    origine_time = train_df["date"].min()
+    train_df["time"] = (train_df["date"] - origine_time).apply(lambda x: x.seconds)
+
+    print "Time features extraction"
+    time = train_df["time"].max() + 1;
+    time_features = get_features_out_in(train_df_flat, time)
+    time_features.to_csv("time_features.csv", sep=",", index=False)
 
 
-	#####################
-	# Temporal features #
-	#####################
-
-	print "Handling time"
-	origine_time = train_df["date"].min()
-	train_df["time"] = (train_df["date"] - origine_time).apply(lambda x: x.seconds)
-
-	print "Time features extraction"
-	time = train_df["time"].max() + 1;
-	time_features = get_features_out_in(train_df_flat, time)
-	time_features.to_csv("time_features.csv", sep=",", index=False)
-
-
-	#####################
-	# Textual features #
-	#####################
+    #####################
+    # Textual features #
+    #####################

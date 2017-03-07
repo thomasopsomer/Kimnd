@@ -20,13 +20,6 @@ def flatten_topics(row, nb_topics):
     return pd.Series(dict_topics)
 
 
-def clean_text(text):
-    text = text.replace(')', ' ').replace('(', ' ').replace('"', '')
-    url_exp = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-    text = re.sub(url_exp, '', text)
-    return text
-
-
 def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
                 nb_topics=4444, alpha=.0025):
     print "Loading data"
@@ -46,7 +39,6 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
         # docs = nlp.pipe(training_info.iloc[:1000]["body"], batch_size=1000,
         #                 n_threads=4)
         print "Preprocessing mails"
-        texts = texts.apply(clean_text)
         texts = texts.apply(preprocess_mail_body, args=(nlp,))
         #import pdb; pdb.set_trace()
         texts = list(texts)

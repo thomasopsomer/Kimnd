@@ -2,11 +2,13 @@
 # -*- coding: utf-8 -*-
 import re
 import string
+from os import path
 
 import pandas as pd
 import cPickle as pkl
 import numpy as np
 from spacy import en
+import spacy
 
 from nltk.tokenize import sent_tokenize
 from gensim.utils import any2unicode, deaccent
@@ -142,7 +144,7 @@ def preprocess_mail_body(txt, nlp):
     txt = deaccent(any2unicode(txt))
     # split according to reply forward (get rid of "entête")
     # remove punctuation
-    txt = replace_punct(txt)
+
     # txt = "\n".join(re_fw_regex.split(txt))
     # txt = txt.replace(">", " ")
     txt = re.sub(re0, ' ', txt)
@@ -159,7 +161,7 @@ def preprocess_mail_body(txt, nlp):
     txt = re.sub(re11, ' ', txt)
 
 
-
+    txt = replace_punct(txt)
     # parenthesis
     txt = txt.replace(')', ' ').replace('(', ' ').replace('"', '')
 
@@ -197,7 +199,8 @@ def preprocess_bodies(dataset, type="test"):
         nlp = spacy.load('en', parser=False)
 
         print "Preprocessing mails"
-        # texts = texts.apply(clean_text)
+        # texts = parallelize_dataframe(texts, preprocess_mail_body, num_cores=4,
+        #                               nlp=nlp)
         texts = texts.apply(preprocess_mail_body, args=(nlp,))
 
         texts = list(texts)
