@@ -11,6 +11,11 @@ import numpy as np
 
 # utils for loading and preprocessing dataset
 
+# To clean recipients
+def clean_recipients(row):
+    recipients = [recipient for recipient in row if "@" in recipient]
+    return recipients
+
 
 def flatmap(df, col, new_col_name, new_col_type=None):
     """perform flatmap or 'explode' operation on column 'col'"""
@@ -24,7 +29,7 @@ def flatmap(df, col, new_col_name, new_col_type=None):
     return res
 
 
-def load_dataset(dataset_path, mail_path, train=True):
+def load_dataset(dataset_path, mail_path, train=True, flat=False):
     """
     Load and preprocess the dataset
     Explode the mail ids (mids)
@@ -49,8 +54,11 @@ def load_dataset(dataset_path, mail_path, train=True):
         set_df.recipients = set_df.recipients.str.split()
     #
     set_df.date = pd.to_datetime(set_df.date)
+    # clean recipients
+    set_df["recipients"] = set_df["recipients"].apply(clean_recipients)
     #
-    set_df = flatmap(set_df, "recipients", "recipient", np.string0)
+    if flat:
+        set_df = flatmap(set_df, "recipients", "recipient", np.string0)
     return set_df
 
 

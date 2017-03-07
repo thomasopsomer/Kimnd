@@ -5,7 +5,6 @@ from gow import top30_similarity
 
 
 def incoming_text_similarity(dataset, m, user):
-    dataset = flatmap(dataset, "recipients", "recipient", np.string_)
     # Dataset containing all previous emails sent to person 'user'
     dataset_to_rec = dataset[dataset.recipient == user]
     # Measure similarity between m and all the messages received
@@ -20,7 +19,6 @@ def incoming_text_similarity(dataset, m, user):
 
 
 def outgoing_text_similarity(dataset, m, user):
-    dataset = flatmap(dataset, "recipients", "recipient", np.string_)
     # Dataset containing all previous emails sent by person 'user'
     dataset_from_rec = dataset[dataset.recipient == user]
     # Measure similarity between m and all the messages received

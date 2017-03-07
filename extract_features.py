@@ -6,12 +6,6 @@ from collections import Counter
 import utils
 
 
-# To clean recipients
-def clean_recipients(row):
-    recipients = [recipient for recipient in row if "@" in recipient]
-    return recipients
-
-
 # Get the address book of each user
 def address_book_users(df):
     book = df.groupby("sender").recipients.sum()
@@ -38,6 +32,7 @@ def get_frequencies_outgoing(df_flat, time):
     frequencies = frequencies.rename(columns = {"sender":"user", "recipient": "contact"}) # user and contact as in the paper
     frequencies = frequencies[["user", "contact", "OUT_ratio"]]
     return frequencies
+
 
 ### 2. Incoming Message Percentage ###
 def get_frequencies_incoming(df_flat, time):
@@ -165,10 +160,7 @@ if __name__=="__main__":
 	dataset_path = "data/training_set.csv"
 	mail_path = "data/training_info.csv"
 
-	train_df = utils.load_dataset(dataset_path, mail_path, train=True)
-
-	print "Cleaning recipients"
-	train_df["recipients"] = train_df["recipients"].apply(clean_recipients)
+	train_df = utils.load_dataset(dataset_path, mail_path, train=True, flat=True)
 
 
 	#####################
@@ -179,10 +171,12 @@ if __name__=="__main__":
 	origine_time = train_df["date"].min()
 	train_df["time"] = (train_df["date"] - origine_time).apply(lambda x: x.seconds)
 
-	print "Flattening the DataFrame"
-	train_df_flat = utils.flatmap(train_df, "recipients", "recipient", new_col_type=np.string0)
-
 	print "Time features extraction"
-	time = 500000
+	time = train_df["time"].max() + 1;
 	time_features = get_features_out_in(train_df_flat, time)
 	time_features.to_csv("time_features.csv", sep=",", index=False)
+
+
+	#####################
+	# Textual features #
+	#####################
