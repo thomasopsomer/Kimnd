@@ -100,7 +100,7 @@ def replace_punct(s):
     return s
 
 
-def preprocess_mail_body(txt, nlp):
+def bow_mail_body(txt, nlp):
     """
     args:
         - txt: raw text
@@ -151,3 +151,7 @@ def preprocess_mail_body(txt, nlp):
                     not (tok.orth_.startswith("-"))):
                 bow.append(tok.lemma_)
     return bow
+
+
+
+
