@@ -72,23 +72,22 @@ class EnronGraphCorpus(object):
         dataset: dataframe builded with "utils.load_dataset"
         """
         self.dataset = dataset
-        # build graph
-        self.build_graph()
+        
+        # id2mail and mail2id mapping
+        s_email = dataset.sender.unique()
+        r_email = flatmap(dataset, "recipients", "recipient").recipient.unique()
+        self.id2email = sorted(list(set(r_email).union(s_email)))
+        self.mail2id = dict((m, k) for k, m in enumerate(self.id2email))
+        self.num_doc = dataset.shape[0]
 
     def build_graph(self, output_path=None):
         """ """
         df = self.dataset
-        # all email and mapping to ids
-        s_email = df.sender.unique()
-        r_email = flatmap(df, "recipients", "recipient").recipient.unique()
-        self.id2email = list(set(r_email).union(s_email))
-        self.mail2id = dict((m, k) for k, m in enumerate(self.id2email))
-
+        # compoute frequency
         freq = defaultdict(Counter)
         for row in df.itertuples():
             sender = row.sender
             freq[sender].update(row.recipients)
-
         # create graph
         self.DG = nx.DiGraph()
         # fill the DiGraph
@@ -100,8 +99,8 @@ class EnronGraphCorpus(object):
 
         # save graph as edgelist txt
         if output_path is not None:
-            with open(path_to_edgelist, "w") as f:
-                for fr, to, data in nx.to_edgelist(DG):
+            with open(output_path, "w") as f:
+                for fr, to, data in nx.to_edgelist(self.DG):
                     f.write("%s %s %s\n" % (fr, to, data["weight"]))
 
     def build_flat_dataset(self, fake_percent=0.4):
@@ -160,7 +159,7 @@ class EnronGraphCorpus(object):
         for i, row in enumerate(self.dataset.itertuples()):
             mid = row.mid
             bow = bow_mail_body(row.body, self.nlp)
-            self.bow[mid] = bow
+            self.bow[mid] = [x for x in bow if x]
             if i % int(n / 50) == 0:
                 print "Progress: %.2f %%" % (100.0 * i / n)
         return True
@@ -174,28 +173,37 @@ class EnronGraphCorpus(object):
             self.bow = Pickle.load(f)
         return True
 
-    def make_wcbow(self, w="uniform", mode="log"):
+    def make_wcbow(self, w="uniform", tf_mode="log"):
         """
         for now use spacy vectors
         """
         self.wcbow = {}
+        # spacy to load vectors :)
+        if not hasattr(self, "nlp"):
+            self.nlp = get_custom_spacy()
+        #
         for mid, bow in self.bow.iteritems():
             if not bow:
                 self.wcbow[mid] = np.zeros(300, dtype=np.float32)
             else:
                 if w == "uniform":
+                    doc = spacy.tokens.doc.Doc(self.nlp.vocab, bow)
                     self.wcbow[mid] = doc.vector
                 elif w == "tfidf":
                     tf = Counter(bow)
-                    words, tfidf = []
+                    words, tfidf = [], []
                     for word in bow:
                         if word in self.idf:
                             words.append(word)
-                            tfidf.append(compute_tfidf(tf[word], self.idf[word],
-                                         mode=mode))
-                    doc = spacy.tokens.doc.Doc(self.nlp.vocab, words)
-                    self.wcbow[mid] = np.mean([tok.vector for tok in doc],
-                                              weights=tfidf, axis=0)
+                            tfidf.append(compute_tfidf(tf[word],
+                                         compute_idf(self.num_doc, self.idf[word]),
+                                         tf_mode=tf_mode))
+                    if words:
+                        doc = spacy.tokens.doc.Doc(self.nlp.vocab, words)
+                        self.wcbow[mid] = np.average([tok.vector for tok in doc],
+                                                     weights=tfidf, axis=0)
+                    else:
+                        self.wcbow[mid] = np.zeros(300, dtype=np.float32)
         return
 
     def get_wcbow(self):
@@ -208,8 +216,7 @@ class EnronGraphCorpus(object):
         se = self.dataset.groupby("sender")["mid"].apply(list).to_dict()
         for k, v in se.iteritems():
             vecs = [self.wcbow[mid] for mid in v]
-            self.sender_rep[k] = np.mean(vecs)
-        return
+            self.sender_rep[k] = np.average(vecs, axis=0)
 
         # recipient (avg vector of all message received)
         self.recipient_rep = {}
@@ -219,7 +226,7 @@ class EnronGraphCorpus(object):
             .to_dict()
         for k, v in d.iteritems():
             vecs = [self.wcbow[mid] for mid in v]
-            self.recipient_rep[k] = np.mean(vecs)
+            self.recipient_rep[k] = np.average(vecs, axis=0)
         return
 
     def get_sender_rep(self):
@@ -243,8 +250,7 @@ def compute_idf(D, DF, mode="tfidf"):
         raise ValueError("""Mode needs to be tfidf of bm25""")
 
 
-def compute_tfidf(tf, idf, len_doc, avg, b, tf_mode="raw",
-                  **kwarg):
+def compute_tfidf(tf, idf, tf_mode="raw", **kwarg):
     """ """
     if tf_mode == "log":
         tf = 1.0 + np.log(tf)
@@ -252,8 +258,8 @@ def compute_tfidf(tf, idf, len_doc, avg, b, tf_mode="raw",
         tf = 1.0 + np.log(1.0 + np.log(tf))
     elif tf_mode == "sqrt":
         tf = np.sqrt(tf)
-    elif tf_mode == "pol":
-        tf = (1.0 + np.log(tf)) / (1 - b + b * len_doc / avg)
+    # elif tf_mode == "pol":
+    #     tf = (1.0 + np.log(tf)) / (1 - b + b * len_doc / avg)
     return tf * idf
 
 
@@ -293,14 +299,19 @@ if __name__ == '__main__':
 
     egc = EnronGraphCorpus(df)
 
-    egc.build_graph()
+    egc.build_graph("data/enron.edgelist")
     egc.DG
-    egc.load_n2v_vectors("emb/enron_p_1_q_03_u.emb")
+    egc.load_n2v_vectors("emb/enron_p_1_q_05_d.emb")
     egc.n2v.most_similar("karen.buckley@enron.com")
 
-    egc.make_bow()
+    # egc.make_bow()
+    egc.load_bow("data/bow.pkl")
     egc.fit_idf(min_df=4)
-    egc.make_wcbow(w="uniform")
+    egc.make_wcbow(w="tfidf")
+
+    egc.build_people_vectors()
+
+
 
 
 
