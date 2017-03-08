@@ -5,6 +5,7 @@ import multiprocessing as mp
 from math import ceil
 import numpy as np
 from functools import partial
+import utils
 
 
 def sample_neg_recipient(recipients, emails, percent=0.3):
@@ -29,6 +30,7 @@ def sample_neg_rec_df(df, emails, percent=0.3):
     return df
 
 
+# Parallelization
 def parallelize_dataframe(df, func, num_cores, **kwargs):
     """
     Function to parallelize a function over rows of a dataset :)
@@ -58,18 +60,18 @@ def parallelize_dataframe(df, func, num_cores, **kwargs):
 
 
 def make_flat_dataset(df, emails, mail2id, fake_percent, num_cores=4):
-	"""
-	df is supposed to be the df obtained with load_dataset :)
-	mail2id is supposed to be a dictionnary of emails to their ids
-	"""
+    """
+    df is supposed to be the df obtained with load_dataset :)
+    mail2id is supposed to be a dictionnary of emails to their ids
+    """
     # create fake paires randomly
     df_neg = parallelize_dataframe(
         df, sample_neg_rec_df, num_cores=num_cores, emails=emails,
         percent=fake_percent)
 
     # flatten the recipients
-    df_flat_rec = flatmap(df, "recipients", "recipient")
-    df_flat_neg = flatmap(
+    df_flat_rec = utils.flatmap(df, "recipients", "recipient")
+    df_flat_neg = utils.flatmap(
         df_neg.drop("recipients", axis=1), "negs", "recipient")
     # add labels: 0 for fake recipient, 1 for others
     df_flat_rec["label"] = 1
@@ -81,6 +83,3 @@ def make_flat_dataset(df, emails, mail2id, fake_percent, num_cores=4):
     df_flat.recipient = df_flat.recipient.map(lambda x: mail2id[x])
     #
     return df_flat
-
-
-

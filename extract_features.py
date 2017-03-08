@@ -3,15 +3,17 @@ import operator
 import pandas as pd
 import numpy as np
 from collections import Counter
-import utils
+import utils, flat_dataset
+from sklearn.ensemble import RandomForestRegressor
 
-from textual_features import *
+#from textual_features import *
 
 
 # Get the address book of each user
 def address_book_users(df):
     book = df.groupby("sender").recipients.sum()
-    return
+    book = book.map(lambda x: set(x))
+    return book
 
 
 ### 1. Outgoing Message Percentage ###
@@ -92,9 +94,9 @@ def get_more_recent_perc_out(df_flat, time):
     more_recents = more_recents.merge(cnt_all_mess, how="inner", on="sender")
     # The desired feature
     more_recents["OUT_ratio_recent"] = more_recents["OUT_cnt_mess_recent"] / (alpha*more_recents["OUT_cnt_mess_all"])
-    more_recents = more_recents.rename(columns = {"sender":"user", "recipient": "contact", "last_time": "OUT_last_time"})
+    more_recents = more_recents.rename(columns = {"sender":"user", "recipient": "contact"})
     # Take only the columns that we want
-    more_recents = more_recents[["user", "contact", "OUT_last_time", "OUT_ratio_recent"]]
+    more_recents = more_recents[["user", "contact", "OUT_ratio_recent"]]
     return more_recents
 
 
@@ -118,8 +120,8 @@ def get_more_recent_perc_in(df_flat, time):
     cnt_all_mess.columns = ["recipient", "IN_cnt_mess_all"]
     more_recents = more_recents.merge(cnt_all_mess, how="inner", on="recipient")
     more_recents["IN_ratio_recent"] = more_recents["IN_cnt_mess_recent"] / (alpha*more_recents["IN_cnt_mess_all"])
-    more_recents = more_recents.rename(columns = {"recipient":"user", "sender": "contact", "last_time": "IN_last_time"})
-    more_recents = more_recents[["user", "contact", "IN_last_time", "IN_ratio_recent"]]
+    more_recents = more_recents.rename(columns = {"recipient":"user", "sender": "contact"})
+    more_recents = more_recents[["user", "contact", "IN_ratio_recent"]]
     return more_recents
 
 
@@ -130,9 +132,9 @@ def get_features_out_in(df_flat, time):
     print "Incoming Message Percentage"
     frequencies_in = get_frequencies_incoming(df_flat, time)
     print "More Recent Outgoing Percentage"
-    recent_out = get_more_recent_perc_out(df_flat, time)
+    recent_out = flat_dataset.parallelize_dataframe(df_flat, get_more_recent_perc_out, num_cores=4, time=time)
     print "More Recent Incoming Percentage"
-    recent_in = get_more_recent_perc_in(df_flat, time)
+    recent_in = flat_dataset.parallelize_dataframe(df_flat, get_more_recent_perc_in, num_cores=4, time=time)
     # Join all the DataFrames
     outgoing = frequencies_out.merge(recent_out, how="inner", on=["user", "contact"])
     incoming = frequencies_in.merge(recent_in, how="inner", on=["user", "contact"])
@@ -141,18 +143,17 @@ def get_features_out_in(df_flat, time):
     # List of all senders and all recipients
     senders = df_flat.sender.unique()
     recipients = df_flat.recipient.unique()
-    # If the  user never sent a mail, set OUT_ratio_recent to 1 and OUT_ratio to -1
-    time_features.loc[~time_features["user"].isin(senders), "OUT_ratio"] = -1
+    # If the  user never sent a mail, set OUT_ratio_recent to 1 and OUT_ratio to 1
+    time_features.loc[~time_features["user"].isin(senders), "OUT_ratio"] = 1
     time_features.loc[~time_features["user"].isin(senders), "OUT_ratio_recent"] = 1
-    # If the user never received a mail, set IN_ratio_recent to 1 and IN_ratio to -1
-    time_features.loc[~time_features["user"].isin(recipients), "IN_ratio"] = -1
+    # If the user never received a mail, set IN_ratio_recent to 1 and IN_ratio to 1
+    time_features.loc[~time_features["user"].isin(recipients), "IN_ratio"] = 1
     time_features.loc[~time_features["user"].isin(recipients), "IN_ratio_recent"] = 1
     # If we have a NULL value, this means that the user never sent/received a mail to/from this contact
     time_features["OUT_ratio"] = time_features["OUT_ratio"].fillna(0)
     time_features["OUT_ratio_recent"] = time_features["OUT_ratio_recent"].fillna(0)
     time_features["IN_ratio"] = time_features["IN_ratio"].fillna(0)
     time_features["IN_ratio_recent"] = time_features["IN_ratio_recent"].fillna(0)
-    time_features["time"] = time
     return time_features
 
 
@@ -165,12 +166,16 @@ if __name__=="__main__":
     mail_path2 = "data/test_info.csv"
 
     train_df = utils.load_dataset(dataset_path, mail_path, train=True, flat=True)
-    train_df = utils.preprocess_bodies(train_df, type="train")
-
+    train_df_not_flat = utils.load_dataset(dataset_path, mail_path, train=True, flat=False)
     test_df = utils.load_dataset(dataset_path2, mail_path2, train=False)
+
+    print "Preprocessing messages"
+    train_df = utils.preprocess_bodies(train_df, type="train")
     test_df = utils.preprocess_bodies(test_df, type="test")
 
+    print "Extracting global text features"
     idf, id2word, avg_len = get_global_text_features(list(train_df["tokens"]))
+
     #####################
     # Temporal features #
     #####################
@@ -181,10 +186,40 @@ if __name__=="__main__":
 
     print "Time features extraction"
     time = train_df["time"].max() + 1;
-    time_features = get_features_out_in(train_df_flat, time)
+    time_features = get_features_out_in(train_df, time)
     time_features.to_csv("time_features.csv", sep=",", index=False)
 
 
     #####################
     # Textual features #
     #####################
+
+
+
+    ###############
+    # Classifier #
+    ###############
+
+    # Extract all the emails of the database and attribute an unique id to it
+    emails = set(train_df["sender"]).union(set(train_df["recipient"]))
+    mail2id = {email:emid for emid, email in enumerate(emails)}
+    id2mail = {emid:email for (email, emid) in mail2id.items()}
+
+    # Get the positive and negative pairs for the classifier
+    pairs_train = flat_dataset.make_flat_dataset(train_df_not_flat, emails, mail2id, 1.0, num_cores=4)
+
+    # Converting emails to IDs
+    time_features["user"] = time_features["user"].map(lambda x: mail2id[x])
+    time_features["contact"] = time_features["contact"].map(lambda x: mail2id[x])
+
+    # Train arrays
+    X_train = pairs_train.merge(time_features, how="left", on=["contact", "user"])
+    X_train = X_train.fillna(0)
+    y_train = X_train["label"].values
+    X_train = X_train.set_index(["contact", "mid", "user"])
+    X_train = X_train.drop(["body", "label"], axis=1)
+    X_train = X_train.values
+
+    # Training
+    reg = RandomForestRegressor(n_estimators=50, random_state=42, oob_score=True)
+    reg.fit(X_train, y_train)
