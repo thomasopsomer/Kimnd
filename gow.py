@@ -41,8 +41,8 @@ def compute_idf(texts, id2word):
     """
     compute idf of all terms and put it in a dictionary
     """
-    # unique terms
-    all_unique_terms = id2word.keys()
+    # # unique terms
+    # all_unique_terms = id2word.keys()
 
     # store IDF values in dictionary
     n_doc = id2word.num_docs
@@ -171,10 +171,12 @@ def top30_similarity(message, df_user_messages, texts):
 
 if __name__=="__main__":
 
+    dataset_path = "data/training_set.csv"
+    mail_path = "data/training_info.csv"
     train_df = utils.load_dataset(dataset_path, mail_path, train=True)
 
     df_user_messages = train_df.head(10)
-    texts = preprocess_bodies(train_df)
+    texts = utils.preprocess_bodies(train_df)
     message = texts[0]
     import pdb; pdb.set_trace()
     result = top30_similarity(message, df_user_messages, texts)

@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 from utils import flatmap
-from gow import top30_similarity
+from gow import top30_similarity, compute_idf
+from gensim import corpora
 
 
 def get_global_text_features(texts):
@@ -39,5 +40,3 @@ def outgoing_text_similarity(dataset, m, user):
             [user, user, c, 1], columns=df_outgoing.columns)
         )
     return df_outgoing
-
-# TO DO: CHECK WITH CHAIMAA DATASET OF FEATURES ; CHECK WITH PIERRE DATASET OF SIMILAR MESSAGES
