@@ -10,7 +10,7 @@ import numpy as np
 from spacy import en
 import spacy
 
-from spacy_utils import get_custom_spacy, bow_mail_body
+from spacy_utils import get_custom_spacy
 
 from data.stopwords import extendedstopwords
 from nltk.tokenize import sent_tokenize
@@ -101,13 +101,20 @@ re11 = re.compile(' [\d:;,.]+ ')
 
 
 def replace_punct(s):
-    # Replace punctuation in words by spaces
+    # removes punctuation in words
     for c in string.punctuation:
-        s = s.replace(c, " ")
+        s = s.replace(c, "")
     return s
 
 
-def preprocess_mail_body(txt, nlp):
+def drop_digits(s):
+    # remove digits
+    for c in range(10):
+        s = s.replace(c, "")
+    return s
+
+
+def bow_mail_body(txt, nlp):
     """
     args:
         - txt: raw text
@@ -116,39 +123,27 @@ def preprocess_mail_body(txt, nlp):
     # to unicode & get rid of accent
     txt = deaccent(any2unicode(txt))
     # split according to reply forward (get rid of "entête")
-    # remove punctuation
-
-    txt = re.sub(re0, ' ', txt)
-    txt = re.sub(re1, ' ', txt)
-    txt = re.sub(re2, ' ', txt)
-    txt = re.sub(re3, ' ', txt)
-    txt = re.sub(re4, ' ', txt)
-    txt = re.sub(re5, ' ', txt)
-    txt = re.sub(re6, ' ', txt)
-    txt = re.sub(re7, ' ', txt)
-    txt = re.sub(re8, ' ', txt)
-    txt = re.sub(re9, ' ', txt)
-    txt = re.sub(re10, ' ', txt)
-    txt = re.sub(re11, ' ', txt)
-    # txt = re.sub(reUrl, ' ', txt)
-
-    txt = replace_punct(txt)
-
+    txt = "\n".join(re_fw_regex.split(txt))
+    txt = txt.replace(">", " ")
     # split sentences
     sentences = sent_tokenize(txt)
     # tokenize + lemmatize + filter ?
     bow = []
     for sent in sentences:
+        if REGEX:
+            sent = " ".join(lower_upper_pat.split(sent))
+            sent = " ".join(number_letter_pat.split(sent))
         doc = nlp(sent, parse=False, entity=False)
         for tok in doc:
-            if (not tok.is_punct and tok.lemma_ not in en.STOP_WORDS and
-                tok.lemma_ not in extendedstopwords and
+            if (tok.lemma_ and
+                not tok.is_punct and not tok.is_stop and
                 not tok.like_num and not tok.is_space and
                 not tok.like_url and len(tok) > 1 and
-                "**" not in tok.orth_ and
-                    not (tok.orth_.startswith("_")) and
-                    not (tok.orth_.startswith("-"))):
-                bow.append(tok.lemma_)
+                not any((x in tok.orth_ for x in not_in_list))):
+                if tok.orth_.startswith("-") or tok.orth_.endswith("-"):
+                    bow.append(tok.lemma_.replace("-", ""))
+                else:
+                    bow.append(drop_digits(replace_punct(tok.lemma_)))
     return bow
 
 
