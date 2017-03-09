@@ -150,26 +150,22 @@ def compute_node_centrality(graph, type="degree"):
     if type == "w_closeness":
         results = graph.closeness(normalized=True,
                                   weights=graph.es["weight"])
-        resultdats = [round(value, 5) for value in resultss]
+        results = [round(value, 5) for value in results]
 
     return zip(graph.vs["name"], results)
 
 
-def top30_similarity(message, df_user_messages, texts):
-    id2word = corpora.Dictionary(texts)
-    id2word.filter_extremes(no_below=4, no_above=0.2, keep_n=100000)
-    idf, avg_len = compute_idf(texts, id2word)
+def top_n_similarity(n, message, df_user_messages, idf, avg_len):
     # Compute tw-idf for 'messages' and 'user_messages'
     twidf_message = tw_idf(message, idf, id2word, avg_len)
     df_user_messages['score'] = np.zeros(len(df_user_messages))
     for ind, row in df_user_messages.iterrows():
         twidf_user_mess = tw_idf(row['tokens'], idf, id2word, avg_len)
-        df_user_messages.iloc[ind]['score'] = cosine_similarity(twidf_message.reshape((1, -1)), twidf_user_mess.reshape((1, -1)))[0, 0]
-    import pdb; pdb.set_trace()
-    return df_user_messages.nlargest(5, 'score')
+        df_user_messages.loc[ind, 'score'] = cosine_similarity(twidf_message.reshape((1, -1)), twidf_user_mess.reshape((1, -1)))[0, 0]
+    return df_user_messages.nlargest(n, 'score')
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
 
     dataset_path = "data/training_set.csv"
     mail_path = "data/training_info.csv"
@@ -178,5 +174,12 @@ if __name__=="__main__":
     train_df = utils.preprocess_bodies(train_df)
     df_user_messages = train_df.head(100)
     texts = train_df["tokens"]
+    # Message to compare
     message = texts[0]
-    result = top30_similarity(message, df_user_messages, texts)
+    # Compute idf
+    id2word = corpora.Dictionary(texts)
+    id2word.filter_extremes(no_below=4, no_above=0.2, keep_n=100000)
+    idf, avg_len = compute_idf(texts, id2word)
+    # Computing similarity between message and df_user_messages
+    n = 5
+    result = top_n_similarity(n, message, df_user_messages, idf, avg_len)

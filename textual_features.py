@@ -2,8 +2,8 @@
 
 import numpy as np
 import pandas as pd
-from utils import flatmap
-from gow import top30_similarity, compute_idf
+import utils
+from gow import top_n_similarity, compute_idf
 from gensim import corpora
 
 
@@ -16,14 +16,13 @@ def get_global_text_features(texts):
     return idf, id2word, avg_len
 
 
-def incoming_text_similarity(dataset, m, user):
+def incoming_text_similarity(dataset, m, user, idf, avg_len, n):
     # Dataset containing all previous emails sent to person 'user'
     dataset_to_rec = dataset[dataset.recipient == user]
     # Measure similarity between m and all the messages received
-    ## METTRE TEXTS
-    dataset_similar = top30_similarity(m, dataset_to_rec, texts)
+    dataset_similar = top_n_similarity(n, m, dataset_to_rec, idf, avg_len)
     df_incoming = pd.DataFrame(columns=['user', 'sender', 'recipient', 'incoming text'])
-    for c in dataset_similar['sender']: ## TO CHANGE NAME, SEE WITH PIERRE
+    for c in dataset_similar['sender']:
         df_incoming = df_incoming.append(pd.DataFrame(
             [user, c, user, 1], columns=df_incoming.columns)
         )
@@ -42,3 +41,20 @@ def outgoing_text_similarity(dataset, m, user):
             [user, user, c, 1], columns=df_outgoing.columns)
         )
     return df_outgoing
+
+if __name__ == "__main__":
+
+    dataset_path = "data/training_set.csv"
+    mail_path = "data/training_info.csv"
+    train_df = utils.load_dataset(dataset_path, mail_path, train=True, flat=True)
+
+    train_df = utils.preprocess_bodies(train_df)
+    texts = train_df["tokens"]
+    # Compute idf
+    idf, idf2word, avg_len = get_global_text_features(texts)
+    # Message to compare
+    message = texts[0]
+    # Computing similarity between message and df_user_messages
+    user = 'jshankm@enron.com'
+    n = 5
+    df_incoming = incoming_text_similarity(train_df, message, user, idf, avg_len, n)
