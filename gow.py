@@ -158,14 +158,14 @@ def compute_node_centrality(graph, type="degree"):
 def top30_similarity(message, df_user_messages, texts):
     id2word = corpora.Dictionary(texts)
     id2word.filter_extremes(no_below=4, no_above=0.2, keep_n=100000)
-    idf = compute_idf(texts, id2word)
+    idf, avg_len = compute_idf(texts, id2word)
     # Compute tw-idf for 'messages' and 'user_messages'
-    twidf_message = tw_idf(message, idf, id2word)
+    twidf_message = tw_idf(message, idf, id2word, avg_len)
     df_user_messages['score'] = np.zeros(len(df_user_messages))
     for ind, row in df_user_messages.iterrows():
-        twidf_user_mess = tw_idf(row['tokens'], idf, id2word)
-        df_user_messages.iloc[ind]['score'] = cosine_similarity(twidf_message,
-                                                                twidf_user_mess)
+        twidf_user_mess = tw_idf(row['tokens'], idf, id2word, avg_len)
+        df_user_messages.iloc[ind]['score'] = cosine_similarity(twidf_message.reshape((1, -1)), twidf_user_mess.reshape((1, -1)))[0, 0]
+    import pdb; pdb.set_trace()
     return df_user_messages.nlargest(5, 'score')
 
 
@@ -175,8 +175,8 @@ if __name__=="__main__":
     mail_path = "data/training_info.csv"
     train_df = utils.load_dataset(dataset_path, mail_path, train=True)
 
-    df_user_messages = train_df.head(10)
-    texts = utils.preprocess_bodies(train_df)
+    train_df = utils.preprocess_bodies(train_df)
+    df_user_messages = train_df.head(100)
+    texts = train_df["tokens"]
     message = texts[0]
-    import pdb; pdb.set_trace()
     result = top30_similarity(message, df_user_messages, texts)

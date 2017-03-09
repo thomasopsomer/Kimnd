@@ -159,7 +159,7 @@ def preprocess_mail_body(txt, nlp):
     return bow
 
 
-def preprocess_bodies(dataset, type="test"):
+def preprocess_bodies(dataset, type="train"):
     pickle_path = "preprocessed_data_{:s}.pkl".format(type)
     if path.exists(pickle_path):
         texts = pkl.load(open(pickle_path, "rb"))
