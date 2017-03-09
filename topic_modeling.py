@@ -36,16 +36,11 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
         print "Loading Spacy"
         nlp = spacy.load('en', parser=False)
 
-        # docs = nlp.pipe(training_info.iloc[:1000]["body"], batch_size=1000,
-        #                 n_threads=4)
         print "Preprocessing mails"
         texts = texts.apply(preprocess_mail_body, args=(nlp,))
-        #import pdb; pdb.set_trace()
+
         texts = list(texts)
-        # for i, doc in enumerate(training_info["body"]):
-        #     texts.append(preprocess_mail_body(doc, nlp))
-        #     if i % 1000 == 0:
-        #         print "{:d} document processed".format(i)
+
         print "Creating id2word and corpus"
         id2word = corpora.Dictionary(texts)
         id2word.filter_extremes(no_below=4, no_above=0.2, keep_n=100000)

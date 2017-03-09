@@ -3,10 +3,11 @@ import operator
 import pandas as pd
 import numpy as np
 from collections import Counter
+from ast import literal_eval
 import utils, flat_dataset
 from sklearn.ensemble import RandomForestRegressor
 
-#from textual_features import *
+from textual_features import *
 
 
 # Get the address book of each user
@@ -42,7 +43,7 @@ def get_frequencies_outgoing(df_flat, time):
 def get_frequencies_incoming(df_flat, time):
     # Same operations as the previous function
     # This time, the user is the recipient
-    df_flat = df_flat[df_flat["time"]<time]
+    df_flat = df_flat[df_flat["time"] < time]
     if df_flat.empty:
         return pd.DataFrame([])
     frequencies_sender = pd.DataFrame(df_flat.groupby(["recipient", "sender"]).mid.nunique()).reset_index()
@@ -56,7 +57,7 @@ def get_frequencies_incoming(df_flat, time):
     return frequencies
 
 
-### 3. More Recent Outgoing Percentage ###
+# ## 3. More Recent Outgoing Percentage ###
 def get_last_time(df_flat):
     # Get last time email was sent to a recipient from a sender
     # At the end we have one row for each couple (sender, recipient)
@@ -157,6 +158,31 @@ def get_features_out_in(df_flat, time):
     return time_features
 
 
+### Predicting for each user ###
+def add_recipients(df, all_emails):
+    """all_emails: all ID contacts of all users"""
+    user = df["sender"].iloc[0] # ID of the user
+    emails = all_emails[user]
+    df["emails"] = str(list(emails))
+    df["emails"] = df["emails"].map(literal_eval)
+    return df
+
+
+def predict(test_user, features, all_emails, reg):
+    """test_user: the DataFrame of the test for a specific sender
+    features: the features extracted
+    emails: list of all email
+    reg: the trained predictor"""
+    # Create a dataset with all the possible combinations (userID, mid, contactID)
+    test_user = add_recipients(test_user, contacts)
+    test_user = utils.flatmap(test_user, "emails", "contact", np.string0)
+
+    # Some renaming
+    test_user = test_user.rename(columns={"sender":"user"})
+    test_user = test_user[["user", "contact", "mid"]]
+    return test_user
+
+
 if __name__=="__main__":
 
     print "Loading the files"
@@ -202,24 +228,46 @@ if __name__=="__main__":
 
     # Extract all the emails of the database and attribute an unique id to it
     emails = set(train_df["sender"]).union(set(train_df["recipient"]))
-    mail2id = {email:emid for emid, email in enumerate(emails)}
-    id2mail = {emid:email for (email, emid) in mail2id.items()}
+
+    # Get all contacts for each user
+    contacts = time_features.groupby("user").contact.apply(set)
 
     # Get the positive and negative pairs for the classifier
-    pairs_train = flat_dataset.make_flat_dataset(train_df_not_flat, emails, mail2id, 1.0, num_cores=4)
-
-    # Converting emails to IDs
-    time_features["user"] = time_features["user"].map(lambda x: mail2id[x])
-    time_features["contact"] = time_features["contact"].map(lambda x: mail2id[x])
+    pairs_train = flat_dataset.make_flat_dataset(train_df_not_flat, contacts, 1.0, num_cores=4)
+    pairs_train = pairs_train.rename(columns={"sender":"user", "recipient": "contact"})
+    pairs_train = pairs_train[["user", "contact", "mid", "label"]]
 
     # Train arrays
     X_train = pairs_train.merge(time_features, how="left", on=["contact", "user"])
     X_train = X_train.fillna(0)
     y_train = X_train["label"].values
     X_train = X_train.set_index(["contact", "mid", "user"])
-    X_train = X_train.drop(["body", "label"], axis=1)
+    X_train = X_train.drop(["label"], axis=1)
     X_train = X_train.values
 
     # Training
-    reg = RandomForestRegressor(n_estimators=50, random_state=42, oob_score=True)
+    reg = RandomForestRegressor(n_estimators=500, random_state=42, oob_score=True)
     reg.fit(X_train, y_train)
+
+    # Prediction
+    test_pairs = test_df.groupby("sender").apply(
+        lambda test_user: predict(test_user, time_features, contacts, reg))
+    test_pairs = test_pairs.reset_index(drop=True)
+
+    # Getting the arrays for the prediction
+    X_test = test_pairs.merge(time_features, how="left", on=["contact", "user"])
+    X_test = X_test.fillna(0)
+    X_test = X_test.set_index(["contact", "mid", "user"])
+    test_index = X_test.index
+    X_test = X_test.values
+
+    # Predictions
+    pred = reg.predict(X_test)
+    pred = pd.DataFrame(pred, columns=["pred"], index=test_index).reset_index()
+    
+    # We take the top 10 for each mail
+    res = pred.groupby("mid").apply(lambda row: row.sort_values(by="pred", ascending=False).head(10)).reset_index(drop=True)
+    res = res[["mid", "contact"]]
+    res = res.groupby("mid").contact.apply(list).reset_index()
+    res["contact"] = res.contact.map(lambda x: ' '.join(x))
+    res.to_csv("results_time.csv", index=False)
