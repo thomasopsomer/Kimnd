@@ -69,7 +69,6 @@ def terms_to_graph(terms, window_size):
     Edges are weighted based on term co-occurence within a sliding window of
     fixed size 'w'
     """
-
     from_to = {}
 
     # create initial complete graph (first w terms)
@@ -155,7 +154,7 @@ def compute_node_centrality(graph, type="degree"):
     return zip(graph.vs["name"], results)
 
 
-def top_n_similarity(n, message, df_user_messages, idf, avg_len):
+def top_n_similarity(n, message, df_user_messages, idf, id2word, avg_len):
     # Compute tw-idf for 'messages' and 'user_messages'
     twidf_message = tw_idf(message, idf, id2word, avg_len)
     df_user_messages['score'] = np.zeros(len(df_user_messages))
@@ -182,4 +181,4 @@ if __name__ == "__main__":
     idf, avg_len = compute_idf(texts, id2word)
     # Computing similarity between message and df_user_messages
     n = 5
-    result = top_n_similarity(n, message, df_user_messages, idf, avg_len)
+    result = top_n_similarity(n, message, df_user_messages, idf, id2word, avg_len)

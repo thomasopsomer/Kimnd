@@ -16,11 +16,12 @@ def get_global_text_features(texts):
     return idf, id2word, avg_len
 
 
-def incoming_text_similarity(dataset, m, user, idf, avg_len, n):
+def incoming_text_similarity(dataset, m, user, idf, id2word, avg_len, n):
     # Dataset containing all previous emails sent to person 'user'
+    import pdb; pdb.set_trace()
     dataset_to_rec = dataset[dataset.recipient == user]
     # Measure similarity between m and all the messages received
-    dataset_similar = top_n_similarity(n, m, dataset_to_rec, idf, avg_len)
+    dataset_similar = top_n_similarity(n, m, dataset_to_rec, idf, id2word, avg_len)
     df_incoming = pd.DataFrame(columns=['user', 'sender', 'recipient', 'incoming text'])
     for c in dataset_similar['sender']:
         df_incoming = df_incoming.append(pd.DataFrame(
@@ -57,4 +58,4 @@ if __name__ == "__main__":
     # Computing similarity between message and df_user_messages
     user = 'jshankm@enron.com'
     n = 5
-    df_incoming = incoming_text_similarity(train_df, message, user, idf, avg_len, n)
+    df_incoming = incoming_text_similarity(train_df, message, user, idf, idf2word, avg_len, n)
