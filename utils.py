@@ -27,6 +27,8 @@ try:
                                       flags=regex.VERSION1)
 except ImportError:
     REGEX = False
+not_in_list = [
+    "_", "--", "*", "/", ":", "=", "(", "]", ")", "#", "|", "@", "+"]
 
 
 def flatmap(df, col, new_col_name, new_col_type=None):
