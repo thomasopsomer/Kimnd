@@ -18,6 +18,16 @@ from gensim.utils import any2unicode, deaccent
 
 # utils for loading and preprocessing dataset
 
+try:
+    import regex
+    REGEX = True
+    lower_upper_pat = regex.compile("(?<=[a-z])(?=[A-Z])",
+                                    flags=regex.VERSION1)
+    number_letter_pat = regex.compile("(?<=[0-9])(?=[a-zA-Z])",
+                                      flags=regex.VERSION1)
+except ImportError:
+    REGEX = False
+
 
 def flatmap(df, col, new_col_name, new_col_type=None):
     """perform flatmap or 'explode' operation on column 'col'"""
