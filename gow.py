@@ -1,15 +1,14 @@
 # coding: utf-8
 import itertools
-import heapq
-import operator
 import igraph
 import copy
-import time
 import math
 import numpy as np
 from gensim import corpora
 from sklearn.metrics.pairwise import cosine_similarity
 import utils
+import pandas as pd
+import time
 
 
 def tw_idf(text, idf, id2word, avg_len, type="closeness", b=0.003, window=3):
@@ -71,45 +70,46 @@ def terms_to_graph(terms, window_size):
     """
     from_to = {}
 
-    # create initial complete graph (first w terms)
-    terms_temp = terms[0:window_size]
-    indexes = list(itertools.combinations(range(window_size), r=2))
+    if len(terms) > window_size:
+        # create initial complete graph (first w terms)
+        terms_temp = terms[0:window_size]
+        indexes = list(itertools.combinations(range(window_size), r=2))
 
-    new_edges = []
+        new_edges = []
 
-    for my_tuple in indexes:
-        new_edges.append(tuple([terms_temp[i] for i in my_tuple]))
+        for my_tuple in indexes:
+            new_edges.append(tuple([terms_temp[i] for i in my_tuple]))
 
-    for new_edge in new_edges:
-        if new_edge in from_to:
-            from_to[new_edge] += 1
-        else:
-            from_to[new_edge] = 1
+        for new_edge in new_edges:
+            if new_edge in from_to:
+                from_to[new_edge] += 1
+            else:
+                from_to[new_edge] = 1
 
-    # then iterate over the remaining terms
-    for i in xrange(window_size, len(terms)):
-        # term to consider
-        considered_term = terms[i]
-        # all terms within sliding window
-        terms_temp = terms[(i-window_size+1):(i+1)]
+        # then iterate over the remaining terms
+        for i in xrange(window_size, len(terms)):
+            # term to consider
+            considered_term = terms[i]
+            # all terms within sliding window
+            terms_temp = terms[(i-window_size+1):(i+1)]
 
-        # edges to try
-        candidate_edges = []
-        for p in xrange(window_size-1):
-            candidate_edges.append((terms_temp[p], considered_term))
+            # edges to try
+            candidate_edges = []
+            for p in xrange(window_size-1):
+                candidate_edges.append((terms_temp[p], considered_term))
 
-        for try_edge in candidate_edges:
+            for try_edge in candidate_edges:
 
-            # if not self-edge
-            if try_edge[1] != try_edge[0]:
+                # if not self-edge
+                if try_edge[1] != try_edge[0]:
 
-                # if edge has already been seen, update its weight
-                if try_edge in from_to:
-                    from_to[try_edge] += 1
+                    # if edge has already been seen, update its weight
+                    if try_edge in from_to:
+                        from_to[try_edge] += 1
 
-                # if edge has never been seen, create it and assign it a unit weight
-                else:
-                    from_to[try_edge] = 1
+                    # if edge has never been seen, create it and assign it a unit weight
+                    else:
+                        from_to[try_edge] = 1
 
     # create empty graph
     g = igraph.Graph(directed=True)
@@ -157,10 +157,12 @@ def compute_node_centrality(graph, type="degree"):
 def top_n_similarity(n, message, df_user_messages, idf, id2word, avg_len):
     # Compute tw-idf for 'messages' and 'user_messages'
     twidf_message = tw_idf(message, idf, id2word, avg_len)
-    df_user_messages['score'] = np.zeros(len(df_user_messages))
+    df_user_messages['score'] = pd.Series(np.zeros(len(df_user_messages)))
     for ind, row in df_user_messages.iterrows():
+        print(row['tokens'])
         twidf_user_mess = tw_idf(row['tokens'], idf, id2word, avg_len)
         df_user_messages.loc[ind, 'score'] = cosine_similarity(twidf_message.reshape((1, -1)), twidf_user_mess.reshape((1, -1)))[0, 0]
+    # TRAITER SCORES 0 /!\
     return df_user_messages.nlargest(n, 'score')
 
 

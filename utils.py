@@ -77,6 +77,7 @@ def load_dataset(dataset_path, mail_path, train=True, flat=False):
             set_df = flatmap(set_df, "recipients", "recipient", np.string0)
 
     set_df.date = pd.to_datetime(set_df.date)
+    set_df.index = range(len(set_df.index))
     return set_df
 
 
