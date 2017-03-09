@@ -63,6 +63,7 @@ def load_dataset(dataset_path, mail_path, train=True, flat=False):
 
         if flat:
             set_df = flatmap(set_df, "recipients", "recipient", np.string0)
+
     set_df.date = pd.to_datetime(set_df.date)
     return set_df
 
@@ -99,8 +100,8 @@ re10 = re.compile(
 re11 = re.compile(' [\d:;,.]+ ')
 
 
-# Replace punctuation in words by spaces
 def replace_punct(s):
+    # Replace punctuation in words by spaces
     for c in string.punctuation:
         s = s.replace(c, " ")
     return s

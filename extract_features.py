@@ -42,7 +42,7 @@ def get_frequencies_outgoing(df_flat, time):
 def get_frequencies_incoming(df_flat, time):
     # Same operations as the previous function
     # This time, the user is the recipient
-    df_flat = df_flat[df_flat["time"]<time]
+    df_flat = df_flat[df_flat["time"] < time]
     if df_flat.empty:
         return pd.DataFrame([])
     frequencies_sender = pd.DataFrame(df_flat.groupby(["recipient", "sender"]).mid.nunique()).reset_index()
@@ -56,7 +56,7 @@ def get_frequencies_incoming(df_flat, time):
     return frequencies
 
 
-### 3. More Recent Outgoing Percentage ###
+# ## 3. More Recent Outgoing Percentage ###
 def get_last_time(df_flat):
     # Get last time email was sent to a recipient from a sender
     # At the end we have one row for each couple (sender, recipient)
