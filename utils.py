@@ -99,6 +99,9 @@ re10 = re.compile(
     '.*\d\d/\d\d/\d\d\d\d.*')
 re11 = re.compile(' [\d:;,.]+ ')
 
+re_fw_pattern = r"----[-\s]*(Original|Forwarded).*Subject:"
+re_fw_regex = re.compile(re_fw_pattern)
+
 
 def replace_punct(s):
     # removes punctuation in words
