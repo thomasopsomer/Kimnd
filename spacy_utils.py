@@ -13,7 +13,7 @@ try:
     lower_upper_pat = regex.compile("(?<=[a-z])(?=[A-Z])",
                                     flags=regex.VERSION1)
     number_letter_pat = regex.compile("(?<=[0-9])(?=[a-zA-Z])",
-                                    flags=regex.VERSION1)
+                                      flags=regex.VERSION1)
 except ImportError:
     REGEX = False
 
@@ -96,11 +96,10 @@ def bow_mail_body(txt, nlp):
                 not tok.is_punct and not tok.is_stop and
                 not tok.like_num and not tok.is_space and
                 not tok.like_url and len(tok) > 1 and
-                not any((x in tok.orth_ for x in not_in_list))
-               ):
+                not any((x in tok.orth_ for x in not_in_list))):
                 if tok.orth_.startswith("-") or tok.orth_.endswith("-"):
                     bow.append(tok.lemma_.replace("-", ""))
-                else:    
+                else:
                     bow.append(tok.lemma_)
     return bow
 
@@ -149,14 +148,3 @@ if __name__ == '__main__':
     # d = nlp(s)
     # for x in d: print x.orth_, x.lemma_
     pass
-
-
-
-
-
-
-
-
-
-
-
