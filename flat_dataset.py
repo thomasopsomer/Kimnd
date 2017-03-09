@@ -68,10 +68,9 @@ def parallelize_dataframe(df, func, num_cores, log=False, **kwargs):
     return df
 
 
-def make_flat_dataset(df, all_emails, mail2id, fake_percent, num_cores=4, log=False):
+def make_flat_dataset(df, all_emails, fake_percent, num_cores=4, log=False):
     """
     df is supposed to be the df obtained with load_dataset :)
-    mail2id is supposed to be a dictionnary of emails to their ids
     """
     # create fake paires randomly
     df_neg = parallelize_dataframe(
@@ -86,8 +85,5 @@ def make_flat_dataset(df, all_emails, mail2id, fake_percent, num_cores=4, log=Fa
     df_flat_neg["label"] = 0
     # concat neg and real recipient paires
     df_flat = pd.concat((df_flat_rec, df_flat_neg), axis=0)
-    # alias mail with ids
-    df_flat.sender = df_flat.sender.map(lambda x: mail2id[x])
-    df_flat.recipient = df_flat.recipient.map(lambda x: mail2id[x])
     #
     return df_flat
