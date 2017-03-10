@@ -126,7 +126,7 @@ def replace_punct(s):
 def drop_digits(s):
     # remove digits
     for c in range(10):
-        s = s.replace(c, "")
+        s = s.replace(str(c), "")
     return s
 
 
@@ -151,15 +151,17 @@ def bow_mail_body(txt, nlp):
             sent = " ".join(number_letter_pat.split(sent))
         doc = nlp(sent, parse=False, entity=False)
         for tok in doc:
-            if (tok.lemma_ and
+            lemma = drop_digits(replace_punct(tok.lemma_))
+            if (lemma and
                 not tok.is_punct and not tok.is_stop and
+                not lemma in extendedstopwords and
                 not tok.like_num and not tok.is_space and
-                not tok.like_url and len(tok) > 1 and
+                not tok.like_url and len(lemma) > 1 and
                 not any((x in tok.orth_ for x in not_in_list))):
                 if tok.orth_.startswith("-") or tok.orth_.endswith("-"):
-                    bow.append(tok.lemma_.replace("-", ""))
+                    bow.append(lemma.replace("-", ""))
                 else:
-                    bow.append(drop_digits(replace_punct(tok.lemma_)))
+                    bow.append(lemma)
     return bow
 
 
