@@ -140,6 +140,21 @@ def sent_mail_body(txt, nlp):
     return sents
 
 
+def preprocess_txt(raw_txt):
+    """ """
+    txt = deaccent(any2unicode(raw_txt))
+    txt = "\n".join(re_fw_regex.split(txt))
+    txt = txt.replace(">", " ")
+    txt = " ".join(lower_upper_pat.split(txt))
+    txt = " ".join(number_letter_pat.split(txt))
+    return res
+
+
+def extract_nlp(doc):
+    """ """
+    for sent in doc.sents
+
+
 if __name__ == '__main__':
     #
     # nlp = get_custom_spacy()
