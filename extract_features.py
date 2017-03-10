@@ -208,14 +208,18 @@ if __name__=="__main__":
     # Temporal features #
     #####################
 
-    print "Handling time"
-    origine_time = train_df["date"].min()
-    train_df["time"] = (train_df["date"] - origine_time).apply(lambda x: x.seconds)
+    try:
+        print "Getting time features"
+        time_features = pd.read_csv("time_features.csv")
+    except Exception as e:
+        print "Handling time"
+        origine_time = train_df["date"].min()
+        train_df["time"] = (train_df["date"] - origine_time).apply(lambda x: x.seconds)
 
-    print "Time features extraction"
-    time = train_df["time"].max() + 1;
-    time_features = get_features_out_in(train_df, time)
-    time_features.to_csv("time_features.csv", sep=",", index=False)
+        print "Time features extraction"
+        time = train_df["time"].max() + 1;
+        time_features = get_features_out_in(train_df, time)
+        time_features.to_csv("time_features.csv", sep=",", index=False)
 
 
     #####################
