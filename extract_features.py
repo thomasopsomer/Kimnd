@@ -4,9 +4,9 @@ import pandas as pd
 import numpy as np
 from collections import Counter
 from ast import literal_eval
-import utils, flat_dataset
+import utils
+import flat_dataset
 from sklearn.ensemble import RandomForestRegressor
-
 import textual_features
 
 
@@ -133,9 +133,11 @@ def get_features_out_in(df_flat, time):
     print "Incoming Message Percentage"
     frequencies_in = get_frequencies_incoming(df_flat, time)
     print "More Recent Outgoing Percentage"
-    recent_out = flat_dataset.parallelize_dataframe(df_flat, get_more_recent_perc_out, num_cores=4, time=time)
+    recent_out = get_more_recent_perc_out(df_flat, time)
+    #recent_out = flat_dataset.parallelize_dataframe(df_flat, get_more_recent_perc_out, num_cores=4, time=time)
     print "More Recent Incoming Percentage"
-    recent_in = flat_dataset.parallelize_dataframe(df_flat, get_more_recent_perc_in, num_cores=4, time=time)
+    recent_in = get_more_recent_perc_in(df_flat, time)
+    #recent_in = flat_dataset.parallelize_dataframe(df_flat, get_more_recent_perc_in, num_cores=4, time=time)
     # Join all the DataFrames
     outgoing = frequencies_out.merge(recent_out, how="inner", on=["user", "contact"])
     incoming = frequencies_in.merge(recent_in, how="inner", on=["user", "contact"])
@@ -200,7 +202,7 @@ if __name__=="__main__":
     test_df = utils.preprocess_bodies(test_df, type="test")
 
     print "Extracting global text features"
-    idf, id2word, avg_len = get_global_text_features(list(train_df["tokens"]))
+    idf, id2word, avg_len = textual_features.get_global_text_features(list(train_df["tokens"]))
 
     #####################
     # Temporal features #
@@ -239,6 +241,7 @@ if __name__=="__main__":
     # Classifier #
     ###############
 
+    print "Preparing for the ranking"
     # Extract all the emails of the database and attribute an unique id to it
     emails = set(train_df["sender"]).union(set(train_df["recipient"]))
 
@@ -247,11 +250,13 @@ if __name__=="__main__":
     # Get all contacts for each user
     contacts = time_features.groupby("user").contact.apply(set)
 
+    print "Generating positive and negative pairs"
     # Get the positive and negative pairs for the classifier
     pairs_train = flat_dataset.make_flat_dataset(train_df_not_flat, contacts, 1.0, num_cores=4)
     pairs_train = pairs_train.rename(columns={"sender":"user", "recipient": "contact"})
     pairs_train = pairs_train[["user", "contact", "mid", "label"]]
 
+    print "Training"
     # Train arrays
     X_train = pairs_train.merge(time_features, how="left", on=["contact", "user"])
     X_train = X_train.fillna(0)
@@ -264,6 +269,7 @@ if __name__=="__main__":
     reg = RandomForestRegressor(n_estimators=500, random_state=42, oob_score=True)
     reg.fit(X_train, y_train)
 
+    print "Getting the test set ready"
     # Prediction
     test_pairs = test_df.groupby("sender").apply(
         lambda test_user: predict(test_user, time_features, contacts, reg))
@@ -276,6 +282,7 @@ if __name__=="__main__":
     test_index = X_test.index
     X_test = X_test.values
 
+    print "Predictions"
     # Predictions
     pred = reg.predict(X_test)
     pred = pd.DataFrame(pred, columns=["pred"], index=test_index).reset_index()
@@ -285,4 +292,4 @@ if __name__=="__main__":
     res = res[["mid", "contact"]]
     res = res.groupby("mid").contact.apply(list).reset_index()
     res["contact"] = res.contact.map(lambda x: ' '.join(x))
-    res.to_csv("results_time.csv", index=False)
+    res.to_csv("results_time.csv", header=["mid", "recipients"], index=False)
