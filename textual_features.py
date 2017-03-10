@@ -34,7 +34,6 @@ def incoming_text_similarity(dataset, mid, user, idf, id2word, avg_len, n):
             df_incoming = df_incoming.append(pd.DataFrame(
                 [[mid, user, c, -1]], columns=df_incoming.columns)
             )
-    pdb.set_trace()
     return df_incoming
 
 
@@ -57,7 +56,6 @@ def outgoing_text_similarity(dataset, mid, user, idf, id2word, avg_len, n):
             df_outgoing = df_outgoing.append(pd.DataFrame(
                 [[mid, user, c, -1]], columns=df_outgoing.columns)
             )
-    pdb.set_trace()
     return df_outgoing
 
 
@@ -76,7 +74,8 @@ if __name__ == "__main__":
     # Message to compare
     mid = 158713
     # Computing similarity between message and df_user_messages
-    user = 'jarnold@enron.com'
+    #user = 'jarnold@enron.com'
+    user = '0892617@PageNet800'
     n = 5
     df_incoming = incoming_text_similarity(train_df, mid, user, idf, id2word, avg_len, n)
     user = 'karen.buckley@enron.com'
