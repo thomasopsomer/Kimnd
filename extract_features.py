@@ -7,7 +7,7 @@ from ast import literal_eval
 import utils, flat_dataset
 from sklearn.ensemble import RandomForestRegressor
 
-from textual_features import *
+import textual_features
 
 
 # Get the address book of each user
@@ -220,6 +220,19 @@ if __name__=="__main__":
     # Textual features #
     #####################
 
+    n = 5  # number of similar messages
+    list_sender = np.unique(train_df_not_flat['sender'].tolist())
+    list_recipients = np.unique(train_df['recipient'].tolist())
+    for ind, row in train_df_not_flat.iterrows():
+        mid = row['mid']
+        df_all_outgoing = pd.DataFrame(columns=['mid', 'user', 'contact', 'outgoing text'])
+        for user in list_sender:
+            df_all_outgoing.append(textual_features.outgoing_text_similarity(
+                train_df_not_flat, mid, user, idf, id2word, avg_len, 5)
+            )
+
+
+
 
 
     ###############
@@ -228,6 +241,8 @@ if __name__=="__main__":
 
     # Extract all the emails of the database and attribute an unique id to it
     emails = set(train_df["sender"]).union(set(train_df["recipient"]))
+
+    import pdb; pdb.set_trace()
 
     # Get all contacts for each user
     contacts = time_features.groupby("user").contact.apply(set)

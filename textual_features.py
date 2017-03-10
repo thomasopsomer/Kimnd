@@ -17,32 +17,50 @@ def get_global_text_features(texts):
     return idf, id2word, avg_len
 
 
-def incoming_text_similarity(dataset, m, user, idf, id2word, avg_len, n):
+def incoming_text_similarity(dataset, mid, user, idf, id2word, avg_len, n):
     # Dataset containing all previous emails sent to person 'user'
     dataset_to_rec = dataset[dataset['recipients'].map(lambda x: user in x)]
-    # Measure similarity between m and all the messages received
-    dataset_similar = top_n_similarity(n, m, dataset_to_rec, idf, id2word, avg_len)
+
     pdb.set_trace()
-    df_incoming = pd.DataFrame(columns=['user', 'sender', 'recipient', 'incoming text'])
-    for c in dataset_similar['sender']:
-        df_incoming = df_incoming.append(pd.DataFrame(
-            [[user, c, user, 1]], columns=df_incoming.columns)
-        )
+    # Measure similarity between m and all the messages received
+    dataset_similar = top_n_similarity(n, dataset[dataset['mid'] == mid]['tokens'],
+                                       dataset_to_rec, idf, id2word, avg_len)
+    df_incoming = pd.DataFrame(columns=['mid', 'user', 'contact', 'incoming text'])
+    list_sender = np.unique(dataset['sender'].tolist())
+    for c in list_sender:
+        if c in dataset_similar['sender']:
+            df_incoming = df_incoming.append(pd.DataFrame(
+                [[mid, user, c, 1]], columns=df_incoming.columns)
+            )
+        else:
+            df_incoming = df_incoming.append(pd.DataFrame(
+                [[mid, user, c, -1]], columns=df_incoming.columns)
+            )
     return df_incoming
 
 
-def outgoing_text_similarity(dataset, m, user, idf, id2word, avg_len, n):
+def outgoing_text_similarity(dataset, mid, user, idf, id2word, avg_len, n):
     # Dataset containing all previous emails sent by person 'user'
     dataset_from_rec = dataset[dataset.sender == user]
-    pdb.set_trace()
     # Measure similarity between m and all the messages sent
-    dataset_similar = top_n_similarity(n, m, dataset_from_rec, idf, id2word, avg_len)
-    df_outgoing = pd.DataFrame(columns=['user', 'sender', 'recipient', 'outgoing text'])
-    for c in dataset_similar['recipients']:
-        df_outgoing = df_outgoing.append(pd.DataFrame(
-            [[user, user, c, 1]], columns=df_outgoing.columns)
-        )
+    dataset_similar = top_n_similarity(n, dataset[dataset['mid'] == mid]['tokens'],
+                                       dataset_from_rec, idf, id2word, avg_len)
+    df_outgoing = pd.DataFrame(columns=['mid', 'user', 'contact', 'outgoing text'])
+    dataset_flat = utils.flatmap(dataset, "recipients", "recipient", np.string_)
+    list_recipients = np.unique(dataset_flat['recipient'].tolist())
+    list_recipients_similar = np.unique(sum(dataset_similar['recipients'].tolist(), []))
+    for c in list_recipients:
+        if c in list_recipients_similar:
+            df_outgoing = df_outgoing.append(pd.DataFrame(
+                [[user, c, 1]], columns=df_outgoing.columns)
+            )
+        else:
+            df_outgoing = df_outgoing.append(pd.DataFrame(
+                [[user, c, -1]], columns=df_outgoing.columns)
+            )
+    pdb.set_trace()
     return df_outgoing
+
 
 if __name__ == "__main__":
     dataset_path = "data/training_set.csv"
@@ -50,18 +68,18 @@ if __name__ == "__main__":
     train_df = utils.load_dataset(dataset_path, mail_path, train=True)
     train_df = utils.preprocess_bodies(train_df)
     texts = train_df["tokens"]
-    import pdb; pdb.set_trace()
     # Compute idf
     #idf, id2word, avg_len = get_global_text_features(texts)
     idf = pkl.load(open('idf'))
     id2word = pkl.load(open('id2word'))
     avg_len = 66
+    import pdb; pdb.set_trace()
     # Message to compare
-    message = texts[0]
+    mid = 158713
     # Computing similarity between message and df_user_messages
     user = 'jarnold@enron.com'
     n = 5
-    df_incoming = incoming_text_similarity(train_df, message, user, idf, id2word, avg_len, n)
+    df_incoming = incoming_text_similarity(train_df, mid, user, idf, id2word, avg_len, n)
     user = 'karen.buckley@enron.com'
-    df_outgoing = outgoing_text_similarity(train_df, message, user, idf, id2word, avg_len, n)
+    df_outgoing = outgoing_text_similarity(train_df, mid, user, idf, id2word, avg_len, n)
     print('Done.')
