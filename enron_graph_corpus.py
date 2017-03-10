@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import networkx as nx
-from utils import load_dataset, flatmap
+from utils import load_dataset, flatmap, parallelize_dataframe
 from collections import Counter, defaultdict
 from gensim.models.keyedvectors import KeyedVectors
 # import matplotlib.pyplot as plt
@@ -13,7 +13,8 @@ from functools import partial
 from math import ceil
 from spacy_utils import get_custom_spacy, bow_mail_body, sent_mail_body
 import spacy
-import cPickle as Pickle
+import cPickle as _pickle
+from sklearn.preprocessing import normalize
 
 
 def sample_neg_recipient(recipients, emails, percent=0.3):
@@ -39,44 +40,19 @@ def sample_neg_rec_df(df, emails, percent=0.3):
     return df
 
 
-def parallelize_dataframe(df, func, num_cores, **kwargs):
-    """ """
-    df_split = np.array_split(df, num_cores)
-    pool = mp.Pool(num_cores)
-    partial_f = partial(func, **kwargs)
-    try:
-        print 'starting the pool map'
-        df = pd.concat(pool.map(partial_f, df_split))
-        pool.close()
-        print 'pool map complete'
-    except KeyboardInterrupt:
-        print 'got ^C while pool mapping, terminating the pool'
-        pool.terminate()
-        print 'pool is terminated'
-    except Exception, e:
-        print 'got exception: %r, terminating the pool' % (e,)
-        pool.terminate()
-        print 'pool is terminated'
-    finally:
-        print 'joining pool processes'
-        pool.join()
-        print 'join complete'
-    print 'the end'
-    return df
-
-
 class EnronGraphCorpus(object):
-    """ """
+    """
+    """
     def __init__(self, dataset):
         """
         dataset: dataframe builded with "utils.load_dataset"
         """
         self.dataset = dataset
-        
+
         # id2mail and mail2id mapping
-        s_email = dataset.sender.unique()
-        r_email = flatmap(dataset, "recipients", "recipient").recipient.unique()
-        self.id2email = sorted(list(set(r_email).union(s_email)))
+        self.s_email = dataset.sender.unique()
+        self.r_email = flatmap(dataset, "recipients", "recipient").recipient.unique()
+        self.id2email = sorted(list(set(self.r_email).union(self.s_email)))
         self.mail2id = dict((m, k) for k, m in enumerate(self.id2email))
         self.num_doc = dataset.shape[0]
 
@@ -105,7 +81,10 @@ class EnronGraphCorpus(object):
 
     def build_flat_dataset(self, fake_percent=0.4):
         """ """
-        emails = set(self.id2email)
+        df = self.dataset.copy()
+        #
+        # emails = set(self.id2email)
+        emails = set(self.r_email)
         # create fake paires randomly
         df_neg = parallelize_dataframe(
             df, sample_neg_rec_df, num_cores=4, emails=emails,
@@ -121,8 +100,8 @@ class EnronGraphCorpus(object):
         # concat neg and real recipient paires
         df_flat = pd.concat((df_flat_rec, df_flat_neg), axis=0)
         # alias mail with ids
-        df_flat.sender = df_flat.sender.map(lambda x: mail2id[x])
-        df_flat.recipient = df_flat.recipient.map(lambda x: mail2id[x])
+        df_flat.sender = df_flat.sender.map(lambda x: self.mail2id[x])
+        df_flat.recipient = df_flat.recipient.map(lambda x: self.mail2id[x])
         #
         return df_flat
 
@@ -131,13 +110,15 @@ class EnronGraphCorpus(object):
         # load node vectors
         self.n2v = KeyedVectors.load_word2vec_format(vectors_path,
                                                      binary=False)
-        #
-        for k, x in enumerate(self.n2v.index2word):
-            mail = self.id2email[int(x)]
-            voc = self.n2v.vocab[x]
-            self.n2v.vocab[mail] = voc
-            del self.n2v.vocab[x]
-            self.n2v.index2word[k] = mail
+        # l2 normalize
+        self.n2v.syn0 = normalize(self.n2v.syn0)
+        # for k, x in enumerate(self.n2v.index2word):
+        #     # mail = self.id2email[int(x)]
+        #     voc = self.n2v.vocab[x]
+        #     # self.n2v.vocab[mail] = voc
+        #     self.n2v.vocab[int(x)] = voc
+        #     del self.n2v.vocab[x]
+        #     self.n2v.index2word[k] = int(x)
         #
         return
 
@@ -170,7 +151,7 @@ class EnronGraphCorpus(object):
     def load_bow(self, bow_path):
         """ """
         with open(bow_path, 'r') as f:
-            self.bow = Pickle.load(f)
+            self.bow = _pickle.load(f)
         return True
 
     def make_wcbow(self, w="uniform", tf_mode="log"):
@@ -216,7 +197,7 @@ class EnronGraphCorpus(object):
         se = self.dataset.groupby("sender")["mid"].apply(list).to_dict()
         for k, v in se.iteritems():
             vecs = [self.wcbow[mid] for mid in v]
-            self.sender_rep[k] = np.average(vecs, axis=0)
+            self.sender_rep[self.mail2id[k]] = np.average(vecs, axis=0)
 
         # recipient (avg vector of all message received)
         self.recipient_rep = {}
@@ -226,7 +207,7 @@ class EnronGraphCorpus(object):
             .to_dict()
         for k, v in d.iteritems():
             vecs = [self.wcbow[mid] for mid in v]
-            self.recipient_rep[k] = np.average(vecs, axis=0)
+            self.recipient_rep[self.mail2id[k]] = np.average(vecs, axis=0)
         return
 
     def get_sender_rep(self):
@@ -236,6 +217,33 @@ class EnronGraphCorpus(object):
     def get_recipient_rep(self):
         """ """
         return self.recipient_rep
+
+    def create_test_df(self, df, dr=True):
+        """ """
+        df = df.copy()
+        if dr:
+            G = self.DG
+        else:
+            G = self.DG.to_undirected()
+        df.sender = df.sender.map(lambda x: self.mail2id[x])
+        df.recipients = df.recipients.map(
+            lambda x: [self.mail2id[m] for m in x])
+        df["candidates"] = df.sender.map(
+            lambda x: G.neighbors(x))
+        df_flat = flatmap(df, "candidates", "candidate", new_col_type=int)
+        return df_flat
+
+    def save(self, output_path):
+        """ """
+        with open(output_path, "w") as fout:
+            _pickle.dump(self, fout)
+
+    @classmethod
+    def load(self, input_path):
+        """ """
+        with open(input_path, "r") as f:
+            obj = _pickle.load(f)
+        return obj
 
 
 def compute_idf(D, DF, mode="tfidf"):
@@ -285,7 +293,6 @@ if __name__ == '__main__':
 
     # plt.hist(r, bins=100)
     # plt.show()
-
     import os
     from utils import load_dataset
     from enron_graph_corpus import EnronGraphCorpus
@@ -310,6 +317,9 @@ if __name__ == '__main__':
     egc.make_wcbow(w="tfidf")
 
     egc.build_people_vectors()
+
+
+
 
 
 
