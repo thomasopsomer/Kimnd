@@ -159,7 +159,7 @@ def top_n_similarity(n, message, df_user_messages, idf, id2word, avg_len):
     twidf_message = tw_idf(message, idf, id2word, avg_len)
     df_user_messages['score'] = pd.Series(np.zeros(len(df_user_messages)))
     for ind, row in df_user_messages.iterrows():
-        print(row['tokens'])
+        #print(row['tokens'])  # to debug
         twidf_user_mess = tw_idf(row['tokens'], idf, id2word, avg_len)
         df_user_messages.loc[ind, 'score'] = cosine_similarity(twidf_message.reshape((1, -1)), twidf_user_mess.reshape((1, -1)))[0, 0]
     # TRAITER SCORES 0 /!\
