@@ -7,9 +7,6 @@ from os import path
 import pandas as pd
 import cPickle as pkl
 import numpy as np
-from spacy import en
-import spacy
-
 from spacy_utils import get_custom_spacy
 
 from data.stopwords import extendedstopwords
@@ -69,13 +66,7 @@ def load_dataset(dataset_path, mail_path, train=True, flat=False):
             subset=["sender", "body", "date", "recipients"])
         # split recipients into list
         set_df.recipients = set_df.recipients.map(split_emails)
-        # clean recipients
-
-        def clean_recipients(row):
-            recipients = [recipient for recipient in row if "@" in recipient]
-            return recipients
-        set_df["recipients"] = set_df["recipients"].apply(clean_recipients)
-
+        # flatten recipient if needed
         if flat:
             set_df = flatmap(set_df, "recipients", "recipient", np.string0)
 
@@ -173,7 +164,7 @@ def bow_mail_body(txt, nlp):
             lemma = drop_digits(replace_punct(tok.lemma_))
             if (lemma and
                 not tok.is_punct and not tok.is_stop and
-                not lemma in extendedstopwords and
+                lemma not in extendedstopwords and
                 not tok.like_num and not tok.is_space and
                 not tok.like_url and len(lemma) > 1 and
                 not any((x in tok.orth_ for x in not_in_list))):
