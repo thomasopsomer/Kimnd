@@ -15,6 +15,9 @@ from spacy_utils import get_custom_spacy
 from data.stopwords import extendedstopwords
 from nltk.tokenize import sent_tokenize
 from gensim.utils import any2unicode, deaccent
+import multiprocessing as mp
+from functools import partial
+
 
 # utils for loading and preprocessing dataset
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import networkx as nx
-from utils import load_dataset, flatmap
+from utils import load_dataset, flatmap, parallelize_dataframe
 from collections import Counter, defaultdict
 from gensim.models.keyedvectors import KeyedVectors
 # import matplotlib.pyplot as plt
@@ -13,7 +13,7 @@ from functools import partial
 from math import ceil
 from spacy_utils import get_custom_spacy, bow_mail_body, sent_mail_body
 import spacy
-import cPickle as Pickle
+import cPickle as _pickle
 from sklearn.preprocessing import normalize
 
 
@@ -37,32 +37,6 @@ def sample_neg_rec_df(df, emails, percent=0.3):
     df["negs"] = df.recipients.map(
         lambda x: sample_neg_recipient(
             x, emails, percent=percent))
-    return df
-
-
-def parallelize_dataframe(df, func, num_cores, **kwargs):
-    """ """
-    df_split = np.array_split(df, num_cores)
-    pool = mp.Pool(num_cores)
-    partial_f = partial(func, **kwargs)
-    try:
-        print 'starting the pool map'
-        df = pd.concat(pool.map(partial_f, df_split))
-        pool.close()
-        print 'pool map complete'
-    except KeyboardInterrupt:
-        print 'got ^C while pool mapping, terminating the pool'
-        pool.terminate()
-        print 'pool is terminated'
-    except Exception, e:
-        print 'got exception: %r, terminating the pool' % (e,)
-        pool.terminate()
-        print 'pool is terminated'
-    finally:
-        print 'joining pool processes'
-        pool.join()
-        print 'join complete'
-    print 'the end'
     return df
 
 
@@ -177,7 +151,7 @@ class EnronGraphCorpus(object):
     def load_bow(self, bow_path):
         """ """
         with open(bow_path, 'r') as f:
-            self.bow = Pickle.load(f)
+            self.bow = _pickle.load(f)
         return True
 
     def make_wcbow(self, w="uniform", tf_mode="log"):
@@ -244,20 +218,32 @@ class EnronGraphCorpus(object):
         """ """
         return self.recipient_rep
 
-    def create_test_df(self, df, dr=False):
+    def create_test_df(self, df, dr=True):
         """ """
         df = df.copy()
         if dr:
-            G = self.DG.to_undirected()
-        else:
             G = self.DG
+        else:
+            G = self.DG.to_undirected()
         df.sender = df.sender.map(lambda x: self.mail2id[x])
         df.recipients = df.recipients.map(
             lambda x: [self.mail2id[m] for m in x])
         df["candidates"] = df.sender.map(
             lambda x: G.neighbors(x))
-        df_flat = flatmap(df, "candidates", "canditate", new_col_type=int)
+        df_flat = flatmap(df, "candidates", "candidate", new_col_type=int)
         return df_flat
+
+    def save(self, output_path):
+        """ """
+        with open(output_path, "w") as fout:
+            _pickle.dump(self, fout)
+
+    @classmethod
+    def load(self, input_path):
+        """ """
+        with open(input_path, "r") as f:
+            obj = _pickle.load(f)
+        return obj
 
 
 def compute_idf(D, DF, mode="tfidf"):
