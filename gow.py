@@ -12,13 +12,17 @@ import time
 
 
 def tw_idf(text, idf, id2word, avg_len, type="closeness", b=0.003, window=3):
-
+    # if len(text) == 1:
+    #     import pdb; pdb.set_trace()
     # build the graph
     graph = terms_to_graph(text, window)
 
     doc_len = len(text)
 
-    metrics = compute_node_centrality(graph, type=type)
+    if len(text) == 1:
+        metrics = [(text[0], 0)]
+    else:
+        metrics = compute_node_centrality(graph, type=type)
 
     feature_row = np.zeros(len(idf))
     # for each term compute its tw

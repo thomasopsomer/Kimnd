@@ -230,14 +230,16 @@ if __name__=="__main__":
     list_sender = np.unique(train_df_not_flat['sender'].tolist())
     list_recipients = np.unique(train_df['recipient'].tolist())
     for ind, row in train_df_not_flat.iterrows():
+        print(ind)
         mid = row['mid']
-        df_all_outgoing = pd.DataFrame(columns=['mid', 'user', 'contact', 'outgoing_text'])
-        for user in list_sender:
-            df_all_outgoing.append(textual_features.outgoing_text_similarity(
-                train_df_not_flat, mid, user, idf, id2word, avg_len, n)
-            )
+        # df_all_outgoing = pd.DataFrame(columns=['mid', 'user', 'contact', 'outgoing_text'])
+        # for user in list_sender:
+        #     df_all_outgoing.append(textual_features.outgoing_text_similarity(
+        #         train_df_not_flat, mid, user, idf, id2word, avg_len, n)
+        #     )
         df_all_incoming = pd.DataFrame(columns=['mid', 'user', 'contact', 'incoming'])
         for user in list_recipients:
+            print(user)
             df_all_incoming.append(textual_features.incoming_text_similarity(
                 train_df_not_flat, mid, user, idf, id2word, avg_len, n)
             )
