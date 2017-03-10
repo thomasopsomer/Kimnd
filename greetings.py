@@ -31,7 +31,7 @@ def parse_firstnames(dataset):
 
     firstnames = list(set(firstnames))
     firstnames = filter(lambda f: len(f) > 1, firstnames)
-    firstnames = [fn.lower for fn in firstnames]
+    firstnames = [fn.lower() for fn in firstnames]
     return firstnames
 
 
@@ -46,7 +46,7 @@ def parse_lastnames(dataset):
 
     lastnames = list(set(lastnames))
     lastnames = filter(lambda f: len(f) > 1, lastnames)
-    lastnames = [fn.lower for fn in lastnames]
+    lastnames = [fn.lower() for fn in lastnames]
     return lastnames
 
 
