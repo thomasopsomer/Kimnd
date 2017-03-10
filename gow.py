@@ -158,14 +158,17 @@ def compute_node_centrality(graph, type="degree"):
     return zip(graph.vs["name"], results)
 
 
-def top_n_similarity(n, message, df_user_messages, idf, id2word, avg_len):
+def top_n_similarity(n, mid, df_user_messages, twidf_df):
     # Compute tw-idf for 'messages' and 'user_messages'
-    twidf_message = tw_idf(message, idf, id2word, avg_len)
+    #twidf_message = tw_idf(message, idf, id2word, avg_len)
+    twidf_message = twidf_df[twidf_df['mid'] == mid]['twidf']
     df_user_messages['score'] = pd.Series(np.zeros(len(df_user_messages)))
     for ind, row in df_user_messages.iterrows():
         #print(row['tokens'])  # to debug
-        twidf_user_mess = tw_idf(row['tokens'], idf, id2word, avg_len)
-        df_user_messages.loc[ind, 'score'] = cosine_similarity(twidf_message.reshape((1, -1)), twidf_user_mess.reshape((1, -1)))[0, 0]
+        #twidf_user_mess = tw_idf(row['tokens'], idf, id2word, avg_len)
+        twidf_user_mess = twidf_df[twidf_df['mid'] == row['mid']]['twidf']
+        df_user_messages.loc[ind, 'score'] = cosine_similarity(twidf_message.reshape((1, -1)),
+                                                               twidf_user_mess.reshape((1, -1)))[0, 0]
     # TRAITER SCORES 0 /!\
     return df_user_messages.nlargest(n, 'score')
 
@@ -187,4 +190,10 @@ if __name__ == "__main__":
     idf, avg_len = compute_idf(texts, id2word)
     # Computing similarity between message and df_user_messages
     n = 5
-    result = top_n_similarity(n, message, df_user_messages, idf, id2word, avg_len)
+    twidf_df = pd.DataFrame(columns=['mid', 'twidf'])
+    twidf_df['twidf'] = train_df['mid'].map(lambda x:
+                                            tw_idf(train_df[train_df['mid'] == x]['tokens'].values[0],
+                                                   idf, id2word, avg_len)
+                                            )
+    twidf_df['mid'] = train_df['mid']
+    result = top_n_similarity(n, message, df_user_messages, twidf_df)

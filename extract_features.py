@@ -8,6 +8,9 @@ import utils
 import flat_dataset
 from sklearn.ensemble import RandomForestRegressor
 import textual_features
+from gow import tw_idf
+from os import path
+import cPickle as pkl
 
 
 # Get the address book of each user
@@ -198,7 +201,7 @@ if __name__=="__main__":
     test_df = utils.load_dataset(dataset_path2, mail_path2, train=False)
 
     print "Preprocessing messages"
-    train_df = utils.preprocess_bodies(train_df, type="train")
+    train_df_not_flat = utils.preprocess_bodies(train_df_not_flat, type="train")
     test_df = utils.preprocess_bodies(test_df, type="test")
 
     print "Extracting global text features"
@@ -226,6 +229,20 @@ if __name__=="__main__":
     # Textual features #
     #####################
 
+    # Computing and storing tw-idf of all messages
+    pickle_path = "twidf_df_train.pkl"
+    if path.exists(pickle_path):
+        texts = pkl.load(open(pickle_path, "rb"))
+    else:
+        twidf_df = pd.DataFrame(columns=['mid', 'twidf'])
+        twidf_df['mid'] = train_df_not_flat['mid']
+        twidf_df['twidf'] = train_df_not_flat['mid'].map(lambda x:
+                                                         tw_idf(train_df_not_flat[train_df_not_flat['mid'] == x]['tokens'].values[0],
+                                                                idf, id2word, avg_len)
+                                                         )
+        with open(pickle_path, "w") as f:
+            pkl.dump(twidf_df, f)
+
     n = 5  # number of similar messages
     list_sender = np.unique(train_df_not_flat['sender'].tolist())
     list_recipients = np.unique(train_df['recipient'].tolist())
@@ -243,8 +260,6 @@ if __name__=="__main__":
             df_all_incoming.append(textual_features.incoming_text_similarity(
                 train_df_not_flat, mid, user, idf, id2word, avg_len, n)
             )
-
-
 
 
 
