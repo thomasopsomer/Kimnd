@@ -147,12 +147,7 @@ def preprocess_txt(raw_txt):
     txt = txt.replace(">", " ")
     txt = " ".join(lower_upper_pat.split(txt))
     txt = " ".join(number_letter_pat.split(txt))
-    return res
-
-
-def extract_nlp(doc):
-    """ """
-    for sent in doc.sents
+    return txt
 
 
 if __name__ == '__main__':
