@@ -236,7 +236,7 @@ if __name__=="__main__":
             df_all_outgoing.append(textual_features.outgoing_text_similarity(
                 train_df_not_flat, mid, user, idf, id2word, avg_len, n)
             )
-        df_all_incoming = pd.DataFrame(columns=['mid', 'user', 'contact', 'incoming'])
+        df_all_incoming = pd.DataFrame(columns=['mid', 'user', 'contact', 'incoming_text'])
         for user in list_recipients:
             df_all_incoming.append(textual_features.incoming_text_similarity(
                 train_df_not_flat, mid, user, idf, id2word, avg_len, n)
