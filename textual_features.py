@@ -6,6 +6,7 @@ import utils
 from gow import top_n_similarity, compute_idf
 from gensim import corpora
 import cPickle as pkl
+from sklearn.preprocessing import normalize
 
 
 def get_global_text_features(texts):
@@ -64,6 +65,24 @@ def outgoing_text_similarity(dataset, mid, user, twidf_df, n):
     #             [[mid, user, c, -1]], columns=df_outgoing.columns)
     #         )
     return df_outgoing
+
+
+def outgoing_text_similarity_new(df_flat, dico_twidf, dico_average_twidf):
+    mids = np.vstack([dico_twidf[x] for x in df_flat.mid])
+    mids = normalize(mids)
+    averages = np.vstack([dico_average_twidf[(row.sender, row.recipient)] for row in df_flat.iterrows()])
+    averages = normalize(averages)
+    # tw idf representations are normalized
+    return np.sum(mids*averages)
+
+
+def incoming_text_similarity_new(df_flat, dico_twidf, dico_average_twidf):
+    mids = np.vstack([dico_twidf[x] for x in df_flat.mid])
+    mids = normalize(mids)
+    averages = np.vstack([dico_average_twidf[(row.recipient, row.sender)] for row in df_flat.iterrows()])
+    averages = normalize(averages)
+    # tw idf representations are normalized
+    return np.sum(mids*averages)
 
 
 if __name__ == "__main__":

@@ -173,6 +173,20 @@ def top_n_similarity(n, mid, df_user_messages, twidf_df):
     return df_user_messages.nlargest(n, 'score')
 
 
+def top_similarity_threshold(thrsh, mid, df_user_messages, twidf_df):
+    # Compute tw-idf for 'messages' and 'user_messages'
+    twidf_message = twidf_df[twidf_df['mid'] == mid]['twidf']
+    df_user_messages['score'] = pd.Series(np.zeros(len(df_user_messages)))
+    for ind, row in df_user_messages.iterrows():
+        #print(row['tokens'])  # to debug
+        #twidf_user_mess = tw_idf(row['tokens'], idf, id2word, avg_len)
+        twidf_user_mess = twidf_df[twidf_df['mid'] == row['mid']]['twidf']
+        df_user_messages.loc[ind, 'score'] = cosine_similarity(twidf_message.reshape((1, -1)),
+                                                               twidf_user_mess.reshape((1, -1)))[0, 0]
+    # TRAITER SCORES 0 /!\
+    return df_user_messages.nlargest(n, 'score')
+
+
 if __name__ == "__main__":
 
     dataset_path = "data/training_set.csv"

@@ -46,7 +46,7 @@ def predict(test_user, features, all_emails, reg):
     return test_user
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
 
     print "Loading the files"
     dataset_path = "data/training_set.csv"
@@ -82,7 +82,6 @@ if __name__=="__main__":
         time_features = time_features_.get_features_out_in(train_df, time)
         time_features.to_csv("time_features.csv", sep=",", index=False)
 
-
     #####################
     # Textual features #
     #####################
@@ -101,6 +100,25 @@ if __name__=="__main__":
         with open(pickle_path, "w") as f:
             pkl.dump(twidf_df, f)
 
+    # Creating dictionary of tokens
+    # dict_tokens = train_df_not_flat.set_index('mid')['tokens'].to_dict()
+
+    # Computes the average tw idf vector (incoming)
+    dict_list_mid = train_df.groupby(["recipient", "sender"])["mid"].apply(list).to_dict()
+    for tupl in dict_list_mid.keys():
+        dict_list_mid[tupl] = np.average(twidf_df[m] for m in dict_list_mid[tupl])
+    train_df['incoming_txt'] = textual_features.incoming_text_similarity_new(
+        train_df, twidf_df, dict_list_mid)
+
+    # Computes the average tw idf vector (outgoing)
+    dict_list_mid = train_df.groupby(["sender", "recipient"])["mid"].apply(list).to_dict()
+    for tupl in dict_list_mid.keys():
+        dict_list_mid[tupl] = np.average(twidf_df[m] for m in dict_list_mid[tupl])
+    train_df['outgoing_txt'] = textual_features.outoing_text_similarity_new(
+        train_df, twidf_df, dict_list_mid)
+
+    # Computes
+
     def get_outgoing_mid(mid, df, list_sender, twidf_df, n):
         df_all_outgoing = pd.DataFrame(columns=['mid', 'user', 'contact', 'outgoing_text'])
         for user in list_sender:
@@ -113,28 +131,11 @@ if __name__=="__main__":
         df_all_outgoing = df.mid.map(lambda mid: get_outgoing_mid(mid, df, list_sender, twidf_df, n))
         return df_all_outgoing
 
-    n = 5  # number of similar messages
-    list_sender = np.unique(train_df_not_flat['sender'].tolist())
-    list_recipients = np.unique(train_df['recipient'].tolist())
-    df_all_outgoing = flat_dataset.parallelize_dataframe(
-        train_df_not_flat, get_outgoing_all, 4, log=False, list_sender=list_sender, twidf_df=twidf_df, n=n)
-
-    # for ind, row in train_df_not_flat.iterrows():
-    #     print(ind)
-    #     mid = row['mid']
-    #     df_all_outgoing = pd.DataFrame(columns=['mid', 'user', 'contact', 'outgoing_text'])
-    #     for user in list_sender:
-    #         df_all_outgoing.append(textual_features.outgoing_text_similarity(
-    #             train_df_not_flat, mid, user, idf, id2word, avg_len, n)
-    #         )
-    #     df_all_incoming = pd.DataFrame(columns=['mid', 'user', 'contact', 'incoming_text'])
-
-    #     for user in list_recipients:
-    #         print(user)
-    #         df_all_incoming.append(textual_features.incoming_text_similarity(
-    #             train_df_not_flat, mid, user, idf, id2word, avg_len, n)
-    #         )
-
+    # n = 5  # number of similar messages
+    # list_sender = np.unique(train_df_not_flat['sender'].tolist())
+    # list_recipients = np.unique(train_df['recipient'].tolist())
+    # df_all_outgoing = flat_dataset.parallelize_dataframe(
+    #     train_df_not_flat, get_outgoing_all, 4, log=False, list_sender=list_sender, twidf_df=twidf_df, n=n)
 
     ###############
     # Classifier #
