@@ -7,14 +7,14 @@ from os import path
 import pandas as pd
 import cPickle as pkl
 import numpy as np
-from spacy import en
-import spacy
-
 from spacy_utils import get_custom_spacy
 
 from data.stopwords import extendedstopwords
 from nltk.tokenize import sent_tokenize
 from gensim.utils import any2unicode, deaccent
+import multiprocessing as mp
+from functools import partial
+
 
 # utils for loading and preprocessing dataset
 
@@ -65,20 +65,30 @@ def load_dataset(dataset_path, mail_path, train=True, flat=False):
         set_df = set_df.drop_duplicates(
             subset=["sender", "body", "date", "recipients"])
         # split recipients into list
-        set_df.recipients = set_df.recipients.str.split()
-        # clean recipients
-
-        def clean_recipients(row):
-            recipients = [recipient for recipient in row if "@" in recipient]
-            return recipients
-        set_df["recipients"] = set_df["recipients"].apply(clean_recipients)
-
+        set_df.recipients = set_df.recipients.map(split_emails)
+        # flatten recipient if needed
         if flat:
             set_df = flatmap(set_df, "recipients", "recipient", np.string0)
 
     set_df.date = pd.to_datetime(set_df.date)
     set_df.index = range(len(set_df.index))
     return set_df
+
+
+def split_emails(string):
+    res = []
+    tmp = string.split()
+    keep = ""
+    for part in tmp:
+        if "@" in part:
+            if not keep:
+                res.append(part)
+            else:
+                res.append(keep + part)
+                keep = ""
+        else:
+            keep += part
+    return res
 
 
 # Preprocessing of email content to extract Features and Cleaned text
@@ -154,7 +164,7 @@ def bow_mail_body(txt, nlp):
             lemma = drop_digits(replace_punct(tok.lemma_))
             if (lemma and
                 not tok.is_punct and not tok.is_stop and
-                not lemma in extendedstopwords and
+                lemma not in extendedstopwords and
                 not tok.like_num and not tok.is_space and
                 not tok.like_url and len(lemma) > 1 and
                 not any((x in tok.orth_ for x in not_in_list))):
