@@ -12,6 +12,7 @@ from os import path
 import cPickle as pkl
 import temporal_features
 import textual_features
+from average_precision import mapk
 
 
 # Get the address book of each user
@@ -45,7 +46,31 @@ def get_test_set(test_user, features, all_emails, reg):
     return test_user
 
 
+def split_train_dev_set(df, percent=0.2):
+    """
+    split dataset in train and dev set
+    for each sender, we put the a percentage of the last message
+    he sent in the dev set :)
+    """
+    train = []
+    dev = []
+    for k, g in df.groupby("sender")["mid", "recipients"]:
+        n_msg = g.shape[0]
+        n_dev = int(n_msg * percent)
+        g = g.sort_values("date")
+        g_train = g[:-n_dev]
+        g_dev = g[-n_dev:]
+        train.append(g_train)
+        dev.append(g_dev)
+    # concat all dataframe
+    df_train = pd.concat(train, axis=0).sort_index()
+    df_dev = pd.concat(dev, axis=0).sort_index()
+    return df_train, df_dev
+
+
 if __name__ == "__main__":
+
+    TEST = True
 
     print "Loading the files"
     dataset_path = "data/training_set.csv"
@@ -58,8 +83,11 @@ if __name__ == "__main__":
     test_df = utils.load_dataset(dataset_path2, mail_path2, train=False)
 
     ## TEST
-    # train_df_not_flat = train_df_not_flat[:5000]
-    # train_df = train_df[:42508]
+    if TEST:
+        train_df_not_flat, test_df = split_train_dev_set(train_df_not_flat)
+        train_df = train_df[train_df.mid.isin(train_df_not_flat.mid)]
+        recips_test = test_df[["mid", "recipients"]]
+        test_df = test_df.drop("recipients", axis=1)
 
     print "Preprocessing messages"
     train_df_not_flat = utils.preprocess_bodies(train_df_not_flat, type="train")
@@ -195,9 +223,9 @@ if __name__ == "__main__":
 
     print "Adding textual features to the test set"
     test_pairs['outgoing_txt'] = textual_features.outgoing_text_similarity_new(
-        test_pairs, twidf_dico_test, dict_tuple_mids_out)
+        test_pairs, twidf_dico, dict_tuple_mids_out)
     test_pairs['incoming_txt'] = textual_features.incoming_text_similarity_new(
-        test_pairs, twidf_dico_test, dict_tuple_mids_in)
+        test_pairs, twidf_dico, dict_tuple_mids_in)
 
     test_pairs = test_pairs.rename(columns={"sender":"user", "recipient": "contact"})
 
@@ -210,13 +238,19 @@ if __name__ == "__main__":
 
     print "Predictions"
     # Predictions
-    pred = clf.predict_proba(X_test)[:,1]
+    pred = clf.predict_proba(X_test)[:, clf.classes_ == 1]
     pred = pd.DataFrame(pred, columns=["pred"], index=test_index).reset_index()
     
     # We take the top 10 for each mail
-    res = pred.groupby("mid").apply(lambda row: row.sort_values(
-        by="pred", ascending=False).head(10)).reset_index(drop=True)
+    res = pred.groupby("mid").apply(lambda row: row.sort_values(by="pred", ascending=False).head(10)).reset_index(drop=True)
     res = res[["mid", "contact"]]
     res = res.groupby("mid").contact.apply(list).reset_index()
-    res["contact"] = res.contact.map(lambda x: ' '.join(x))
-    res.to_csv("results_time_text_clf.csv", header=["mid", "recipients"], index=False)
+    res["recipients"] = res.contact.map(lambda x: ' '.join(x))
+    if not TEST:
+        res.to_csv("results_time_text_clf.csv", header=["mid", "recipients"], index=False)
+
+    # results
+    if TEST:
+        res = res.sort_values(by="mid")
+        recips_test = recips_test.sort_values(by="mid")
+        print mapk(recips_test["recipients"], res["recipients"])
