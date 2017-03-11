@@ -22,14 +22,14 @@ def search_greetings(dataset):
     we create a dictionary where we list the names of all 'greetings' used for
     a recipient
     """
-    # firstnames = parse_firstnames(dataset)
-    # lastnames = parse_lastnames(dataset)
-    nlp = get_custom_spacy()
+    firstnames = parse_firstnames(dataset)
+    lastnames = parse_lastnames(dataset)
+    # nlp = get_custom_spacy()
     i = 0
     greets = {}
     for ind, row in dataset.iterrows():
-        greet = utils.extract_names(row["body"], nlp)
-
+        # greet = utils.extract_names(row["body"], nlp)
+        detect_greetings(row["body"], firstnames+ lastnames)
         for rec in row["recipients"]:
             if rec not in greets:
                 greets[rec] = cnt = Counter()
@@ -42,9 +42,11 @@ def parse_firstnames(dataset):
     emails = set()
     for i, recipients in enumerate(dataset['recipients']):
         emails.update(set(recipients))
+    # only enron mails
 
     firstnames = [mail.split('.')[0] for mail in list(emails) if
-                  '.' in mail and (mail.index('.') < mail.index('@'))]
+                  '.' in mail and (mail.index('.') < mail.index('@')) and
+                  mail.split('@')[1] == 'enron.com']
 
     firstnames = list(set(firstnames))
     firstnames = filter(lambda f: len(f) > 1, firstnames)
@@ -59,7 +61,8 @@ def parse_lastnames(dataset):
         emails.update(set(recipients))
 
     lastnames = [mail.split('@')[0] for mail in list(emails) if
-                 '.' in mail and (mail.index('.') < mail.index('@') - 1)]
+                 '.' in mail and (mail.index('.') < mail.index('@') - 1) and
+                 mail.split('@')[1] == 'enron.com']
     lastnames = [mail.split('.')[1] for mail in lastnames]
 
     lastnames = list(set(lastnames))
