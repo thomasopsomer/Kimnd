@@ -5,6 +5,8 @@ import pandas as pd
 import utils
 import string
 
+from collections import Counter
+
 from data.stopwords import extendedstopwords
 
 
@@ -16,20 +18,21 @@ extendedstopwords += ("2000", "product", "call", "guy", "enron", "businesses",
 
 def search_greetings(dataset):
     """
-
+    we create a dictionary where we list the names of all 'greetings' used for
+    a recipient
     """
     firstnames = parse_firstnames(dataset)
     lastnames = parse_lastnames(dataset)
     i = 0
-    greets = []
+    greets = {}
     for ind, row in dataset.iterrows():
         greet = detect_greetings(row["body"], firstnames + lastnames)
-        # if greet != []:
-        #     print greet
-        greets.append(greet)
-        # i += 1
-        # if i == 2000:
-        #     break
+
+        for rec in row["recipients"]:
+            if rec not in greets:
+                greets[rec] = cnt = Counter()
+            else:
+                greets[rec].update(greet)
     import pdb; pdb.set_trace()
 
 
