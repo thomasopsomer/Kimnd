@@ -156,6 +156,9 @@ if __name__ == "__main__":
         with open(pickle_path, "w") as f:
             pkl.dump(twidf_dico_test, f)
 
+    if TEST:
+        twidf_dico_test = twidf_dico
+
     print "Getting the averages dictionaries for outgoind and incoming messages"
     # Computes the average tw idf vector (incoming)
     dict_tuple_mids_in = train_df.groupby(["recipient", "sender"])["mid"].apply(list).to_dict()
