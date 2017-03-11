@@ -169,7 +169,7 @@ def bow_mail_body(txt, nlp):
                 lemma not in extendedstopwords and
                 not tok.like_num and not tok.is_space and
                 not tok.like_url and len(lemma) > 1 and
-                not any((x in tok.orth_ for x in not_in_list))):
+                    not any((x in tok.orth_ for x in not_in_list))):
                 if tok.orth_.startswith("-") or tok.orth_.endswith("-"):
                     bow.append(lemma.replace("-", ""))
                 else:
@@ -195,5 +195,38 @@ def preprocess_bodies(dataset, type="train"):
         with open(pickle_path, "w") as f:
             pkl.dump(texts, f)
     dataset["tokens"] = pd.Series(texts)
-    dataset["tokens"] = dataset["tokens"].apply(lambda x: np.unique(x).tolist())  # remove duplicates
+    dataset["tokens"] = dataset["tokens"].apply(
+        lambda x: np.unique(x).tolist())  # remove duplicates
     return dataset
+
+
+def extract_names(txt, nlp, n_sentences=2):
+    """
+    args:
+        - txt: raw text
+        - nlp: a spacy engine
+    """
+    # to unicode & get rid of accent
+    txt = deaccent(any2unicode(txt))
+    # split according to reply forward (get rid of "entête")
+    txt = "\n".join(re_fw_regex.split(txt))
+    txt = txt.replace(">", " ")
+    # split sentences
+    sentences = sent_tokenize(txt)
+    # tokenize + lemmatize + filter ?
+    bow = []
+    for sent in sentences[:n_sentences]:
+        if REGEX:
+            sent = " ".join(lower_upper_pat.split(sent))
+            sent = " ".join(number_letter_pat.split(sent))
+        doc = nlp(sent, parse=False)
+        for tok in doc:
+            lemma = drop_digits(replace_punct(tok.lemma_))
+            if (lemma and (tok.ent_type_ != 'PERSON') and
+                not tok.is_punct and not tok.is_stop and
+                lemma not in extendedstopwords and
+                not tok.like_num and not tok.is_space and
+                not tok.like_url and len(lemma) > 1 and
+                    not any((x in tok.orth_ for x in not_in_list))):
+                bow.append(lemma)
+    return bow

@@ -2,13 +2,15 @@
 
 import numpy as np
 import pandas as pd
-import utils
+
 import string
+import operator
 
 from collections import Counter
 
 from data.stopwords import extendedstopwords
-
+import utils
+from spacy_utils import get_custom_spacy
 
 extendedstopwords += ("2000", "product", "call", "guy", "enron", "businesses",
                       "date", "stock", "chance", "day", "information", "weeks",
@@ -23,16 +25,25 @@ def search_greetings(dataset):
     """
     firstnames = parse_firstnames(dataset)
     lastnames = parse_lastnames(dataset)
+    names = firstnames + lastnames
+    # nlp = get_custom_spacy()
     i = 0
     greets = {}
     for ind, row in dataset.iterrows():
-        greet = detect_greetings(row["body"], firstnames + lastnames)
-
+        # greet = utils.extract_names(row["body"], nlp)
+        greet = detect_greetings(row["body"], names)
         for rec in row["recipients"]:
             if rec not in greets:
-                greets[rec] = cnt = Counter()
+                greets[rec] = {}
             else:
-                greets[rec].update(greet)
+                cnt = Counter(greet)
+                for gr in cnt.keys():
+                    if gr not in greets[rec]:
+                        greets[rec][gr] = 0 
+                    greets[rec][gr] += float(cnt[gr]) / len(row["recipients"])
+    for rec in greets.keys():
+        greets[rec] = sorted(
+            greets[rec].items(), key=operator.itemgetter(1), reverse = True)
     import pdb; pdb.set_trace()
 
 
@@ -40,9 +51,11 @@ def parse_firstnames(dataset):
     emails = set()
     for i, recipients in enumerate(dataset['recipients']):
         emails.update(set(recipients))
+    # only enron mails
 
     firstnames = [mail.split('.')[0] for mail in list(emails) if
-                  '.' in mail and (mail.index('.') < mail.index('@'))]
+                  '.' in mail and (mail.index('.') < mail.index('@')) and
+                  mail.split('@')[1] == 'enron.com']
 
     firstnames = list(set(firstnames))
     firstnames = filter(lambda f: len(f) > 1, firstnames)
@@ -57,7 +70,8 @@ def parse_lastnames(dataset):
         emails.update(set(recipients))
 
     lastnames = [mail.split('@')[0] for mail in list(emails) if
-                 '.' in mail and (mail.index('.') < mail.index('@') - 1)]
+                 '.' in mail and (mail.index('.') < mail.index('@') - 1) and
+                 mail.split('@')[1] == 'enron.com']
     lastnames = [mail.split('.')[1] for mail in lastnames]
 
     lastnames = list(set(lastnames))
