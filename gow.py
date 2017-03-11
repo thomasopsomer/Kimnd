@@ -38,7 +38,7 @@ def tw_idf(text, idf, id2word, avg_len, type="closeness", b=0.003, window=3):
     # For debugging: DETECT THE NAN VALUES
     if np.any(np.isnan(feature_row)):
         import pdb; pdb.set_trace()
-    return feature_row
+    return feature_row.tolist()
 
 
 def compute_idf(texts, id2word):

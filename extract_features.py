@@ -4,11 +4,11 @@ from ast import literal_eval
 import utils
 import flat_dataset
 from sklearn.ensemble import RandomForestRegressor
-import textual_features
 from gow import tw_idf
 from os import path
 import cPickle as pkl
-import time_features_
+import temporal_features
+import textual_features
 
 
 # Get the address book of each user
@@ -64,23 +64,35 @@ if __name__ == "__main__":
     test_df = utils.preprocess_bodies(test_df, type="test")
 
     print "Extracting global text features"
-    idf, id2word, avg_len = textual_features.get_global_text_features(list(train_df_not_flat["tokens"]))
+    idf_path = "idf.pkl"
+    if path.exists(idf_path):
+        idf = pkl.load(open(idf_path, "rb"))
+        id2word = pkl.load(open("id2word.pkl", "rb"))
+        texts = list(train_df_not_flat["tokens"])
+        avg_len = sum(len(terms) for terms in texts) / len(texts)
+    else:
+        idf, id2word, avg_len = textual_features.get_global_text_features(list(train_df_not_flat["tokens"]))
+        with open(idf_path, "w") as f:
+            pkl.dump(idf, f)
+        with open("id2word.pkl", "w") as f:
+            pkl.dump(id2word, f)
 
     #####################
     # Temporal features #
     #####################
 
-    try:
+    time_path = "time_features.csv"
+    if path.exists(time_path):
         print "Getting time features"
         time_features = pd.read_csv("time_features.csv")
-    except Exception as e:
+    else:
         print "Handling time"
         origine_time = train_df["date"].min()
         train_df["time"] = (train_df["date"] - origine_time).apply(lambda x: x.seconds)
 
         print "Time features extraction"
         time = train_df["time"].max() + 1;
-        time_features = time_features_.get_features_out_in(train_df, time)
+        time_features = temporal_features.get_features_out_in(train_df, time)
         time_features.to_csv("time_features.csv", sep=",", index=False)
 
     #####################
@@ -88,19 +100,25 @@ if __name__ == "__main__":
     #####################
 
     # Computing and storing tw-idf of all messages
-    pickle_path = "twidf_df_train.pkl"
+    pickle_path = "twidf_dico_train.pkl"
     if path.exists(pickle_path):
-        twidf_df = pkl.load(open(pickle_path, "rb"))
+        twidf_dico = pkl.load(open(pickle_path, "rb"))
     else:
-        twidf_df = pd.DataFrame(columns=['mid', 'twidf'])
-        twidf_df['mid'] = train_df_not_flat['mid']
-        twidf_df['twidf'] = train_df_not_flat['mid'].map(lambda x:
-                                                         tw_idf(train_df_not_flat[train_df_not_flat['mid'] == x]['tokens'].values[0],
-                                                                idf, id2word, avg_len)
-                                                         )
-        twidf_df = twidf_df.set_index('mid')['twidf'].to_dict()
+        # twidf_df = pd.DataFrame(columns=['mid', 'twidf'])
+        # twidf_df['mid'] = train_df_not_flat['mid']
+        # twidf_df['twidf'] = train_df_not_flat['mid'].map(lambda x:
+        #                                                  tw_idf(train_df_not_flat[train_df_not_flat['mid'] == x]['tokens'].values[0],
+        #                                                         idf, id2word, avg_len)
+        #                                                  )
+        # twidf_dico = twidf_df.set_index('mid')['twidf'].to_dict()
+        twidf_dico = {}
+        for ind, row in train_df_not_flat.iterrows():
+            if (ind+1) % 1000 == 0: print "Processesed ", ind+1
+            mid = row["mid"]
+            tokens = row["tokens"]
+            twidf_dico[mid] = tw_idf(tokens, idf, id2word, avg_len)
         with open(pickle_path, "w") as f:
-            pkl.dump(twidf_df, f)
+            pkl.dump(twidf_dico, f)
 
     # Computes the average tw idf vector (incoming)
     dict_tuple_mids = train_df.groupby(["recipient", "sender"])["mid"].apply(list).to_dict()
