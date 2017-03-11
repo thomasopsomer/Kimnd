@@ -222,11 +222,11 @@ def extract_names(txt, nlp, n_sentences=2):
         doc = nlp(sent, parse=False)
         for tok in doc:
             lemma = drop_digits(replace_punct(tok.lemma_))
-            if not(lemma and tok.ent_type_ != 'PERSON' and
-                   not tok.is_punct and not tok.is_stop and
-                   lemma not in extendedstopwords and
-                   not tok.like_num and not tok.is_space and
-                   not tok.like_url and len(lemma) > 1 and
-                   not any((x in tok.orth_ for x in not_in_list))):
+            if (lemma and (tok.ent_type_ != 'PERSON') and
+                not tok.is_punct and not tok.is_stop and
+                lemma not in extendedstopwords and
+                not tok.like_num and not tok.is_space and
+                not tok.like_url and len(lemma) > 1 and
+                    not any((x in tok.orth_ for x in not_in_list))):
                 bow.append(lemma)
     return bow
