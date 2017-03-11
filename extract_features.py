@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from scipy.sparse import csr_matrix
 from ast import literal_eval
 import utils
 import flat_dataset
@@ -56,8 +57,8 @@ if __name__ == "__main__":
     test_df = utils.load_dataset(dataset_path2, mail_path2, train=False)
 
     ## TEST
-    #train_df_not_flat = train_df_not_flat[:5000]
-    #train_df = train_df[:42508]
+    # train_df_not_flat = train_df_not_flat[:5000]
+    # train_df = train_df[:42508]
 
     print "Preprocessing messages"
     train_df_not_flat = utils.preprocess_bodies(train_df_not_flat, type="train")
@@ -104,13 +105,6 @@ if __name__ == "__main__":
     if path.exists(pickle_path):
         twidf_dico = pkl.load(open(pickle_path, "rb"))
     else:
-        # twidf_df = pd.DataFrame(columns=['mid', 'twidf'])
-        # twidf_df['mid'] = train_df_not_flat['mid']
-        # twidf_df['twidf'] = train_df_not_flat['mid'].map(lambda x:
-        #                                                  tw_idf(train_df_not_flat[train_df_not_flat['mid'] == x]['tokens'].values[0],
-        #                                                         idf, id2word, avg_len)
-        #                                                  )
-        # twidf_dico = twidf_df.set_index('mid')['twidf'].to_dict()
         twidf_dico = {}
         for ind, row in train_df_not_flat.iterrows():
             if (ind+1) % 1000 == 0: print "Processesed ", ind+1
@@ -123,16 +117,18 @@ if __name__ == "__main__":
     # Computes the average tw idf vector (incoming)
     dict_tuple_mids = train_df.groupby(["recipient", "sender"])["mid"].apply(list).to_dict()
     for tupl in dict_tuple_mids.keys():
-        dict_tuple_mids[tupl] = np.average(np.array([twidf_df[m] for m in dict_tuple_mids[tupl]]), axis=0)
+        dict_tuple_mids[tupl] = np.average(np.array([twidf_dico[m].toarray() for m in dict_tuple_mids[tupl]]), axis=0)
+        dict_tuple_mids[tupl] = csr_matrix(dict_tuple_mids[tupl])
     train_df['incoming_txt'] = textual_features.incoming_text_similarity_new(
-        train_df, twidf_df, dict_tuple_mids)
+        train_df, twidf_dico, dict_tuple_mids)
 
     # Computes the average tw idf vector (outgoing)
     dict_tuple_mids = train_df.groupby(["sender", "recipient"])["mid"].apply(list).to_dict()
     for tupl in dict_tuple_mids.keys():
-        dict_tuple_mids[tupl] = np.average(twidf_df[m] for m in dict_tuple_mids[tupl])
+        dict_tuple_mids[tupl] = np.average(np.array([twidf_dico[m].toarray() for m in dict_tuple_mids[tupl]]), axis=0)
+        dict_tuple_mids[tupl] = csr_matrix(dict_tuple_mids[tupl])
     train_df['outgoing_txt'] = textual_features.outoing_text_similarity_new(
-        train_df, twidf_df, dict_tuple_mids)
+        train_df, twidf_dico, dict_tuple_mids)
 
     # Computes
 

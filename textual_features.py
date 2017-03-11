@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+from scipy.sparse import vstack
 import utils
 from gow import top_n_similarity, compute_idf
 from gensim import corpora
@@ -68,22 +69,21 @@ def outgoing_text_similarity(dataset, mid, user, twidf_df, n):
 
 
 def outgoing_text_similarity_new(df_flat, dico_twidf, dico_average_twidf):
-    mids = np.vstack([dico_twidf[x] for x in df_flat.mid])
+    mids = vstack([dico_twidf[x] for x in df_flat.mid])
     mids = normalize(mids)
-    averages = np.vstack([dico_average_twidf[(row[1].sender, row[1].recipient)] for row in df_flat.iterrows()])
+    averages = vstack([dico_average_twidf[(row[1].sender, row[1].recipient)] for row in df_flat.iterrows()])
     averages = normalize(averages)
     # tw idf representations are normalized
-    return np.sum(mids*averages, axis=1)
+    return np.sum(mids.multiply(averages), axis=1)
 
 
 def incoming_text_similarity_new(df_flat, dico_twidf, dico_average_twidf):
-    import pdb; pdb.set_trace()
-    mids = np.vstack([dico_twidf[x] for x in df_flat.mid])
+    mids = vstack([dico_twidf[x] for x in df_flat.mid])
     mids = normalize(mids)
-    averages = np.vstack([dico_average_twidf[(row[1].recipient, row[1].sender)] for row in df_flat.iterrows()])
+    averages = vstack([dico_average_twidf[(row[1].recipient, row[1].sender)] for row in df_flat.iterrows()])
     averages = normalize(averages)
     # tw idf representations are normalized
-    return np.sum(mids*averages, axis=1)
+    return np.sum(mids.multiply(averages), axis=1)
 
 
 if __name__ == "__main__":

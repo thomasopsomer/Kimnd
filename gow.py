@@ -4,6 +4,7 @@ import igraph
 import copy
 import math
 import numpy as np
+from scipy.sparse import csr_matrix, coo_matrix
 from gensim import corpora
 from sklearn.metrics.pairwise import cosine_similarity
 import utils
@@ -12,6 +13,8 @@ import time
 
 
 def tw_idf(text, idf, id2word, avg_len, type="closeness", b=0.003, window=3):
+    # if len(text) == 1:
+    #     import pdb; pdb.set_trace()
     # build the graph
     graph = terms_to_graph(text, window)
 
@@ -24,6 +27,8 @@ def tw_idf(text, idf, id2word, avg_len, type="closeness", b=0.003, window=3):
 
     feature_row = np.zeros(len(idf))
     # for each term compute its tw
+    indices = []
+    values = []
     for term in set(text):
         if term not in id2word.token2id:
             continue
@@ -32,13 +37,16 @@ def tw_idf(text, idf, id2word, avg_len, type="closeness", b=0.003, window=3):
         denominator = (1 - b + (b * (float(doc_len) / avg_len)))
         metrics_term = [metric[1]
                         for metric in metrics if metric[0] == term][0]
-        # store TW-IDF values
-        feature_row[index] = (
-            float(metrics_term) / denominator) * idf_term
-    # For debugging: DETECT THE NAN VALUES
-    if np.any(np.isnan(feature_row)):
-        import pdb; pdb.set_trace()
-    return feature_row.tolist()
+        # store index and values in list
+        indices.append(int(index))
+        values.append(metrics_term)
+    # build the sparse vector using the list of indices and values
+    indices_j = np.array(indices)
+    indices_i = np.array(len(indices) * [0])
+    tw_idf = coo_matrix((values, (indices_i, indices_j)),
+                               shape=(1, len(id2word)))
+    tw_idf = csr_matrix(tw_idf)
+    return tw_idf
 
 
 def compute_idf(texts, id2word):
