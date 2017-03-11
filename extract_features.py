@@ -166,7 +166,8 @@ if __name__ == "__main__":
     print "Textual features for the pairs"
     pairs_train['outgoing_txt'] = textual_features.outgoing_text_similarity_new(
         pairs_train, twidf_dico, dict_tuple_mids_out)
-    pairs_train['incoming_txt'] = textual_features.incoming_text_similarity_new(pairs_train, twidf_dico, dict_tuple_mids_in)
+    pairs_train['incoming_txt'] = textual_features.incoming_text_similarity_new(
+        pairs_train, twidf_dico, dict_tuple_mids_in)
 
     # Renaming
     pairs_train = pairs_train.rename(columns={"sender":"user", "recipient": "contact"})
@@ -188,7 +189,8 @@ if __name__ == "__main__":
 
     print "Getting the test set ready"
     # Prediction
-    test_pairs = test_df.groupby("sender").apply(lambda test_user: get_test_set(test_user, time_features, contacts, clf))
+    test_pairs = test_df.groupby("sender").apply(
+        lambda test_user: get_test_set(test_user, time_features, contacts, clf))
     test_pairs = test_pairs.reset_index(drop=True)
 
     print "Adding textual features to the test set"
