@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     ## TEST
     if TEST:
-        train_df_not_flat, test_df = split_train_dev_set(train_df_not_flat)
+        train_df_not_flat, test_df = split_train_dev_set(train_df_not_flat, percent=0.06)
         train_df = train_df[train_df.mid.isin(train_df_not_flat.mid)]
         recips_test = test_df[["mid", "recipients"]]
         test_df = test_df.drop("recipients", axis=1)
@@ -256,4 +256,4 @@ if __name__ == "__main__":
     if TEST:
         res = res.sort_values(by="mid")
         recips_test = recips_test.sort_values(by="mid")
-        print mapk(recips_test["recipients"], res["recipients"])
+        print mapk(recips_test["recipients"].tolist(), res["contact"].tolist())
