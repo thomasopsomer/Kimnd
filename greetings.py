@@ -2,13 +2,14 @@
 
 import numpy as np
 import pandas as pd
-import utils
+
 import string
 
 from collections import Counter
 
 from data.stopwords import extendedstopwords
-
+import utils
+from spacy_utils import get_custom_spacy
 
 extendedstopwords += ("2000", "product", "call", "guy", "enron", "businesses",
                       "date", "stock", "chance", "day", "information", "weeks",
@@ -21,12 +22,13 @@ def search_greetings(dataset):
     we create a dictionary where we list the names of all 'greetings' used for
     a recipient
     """
-    firstnames = parse_firstnames(dataset)
-    lastnames = parse_lastnames(dataset)
+    # firstnames = parse_firstnames(dataset)
+    # lastnames = parse_lastnames(dataset)
+    nlp = get_custom_spacy()
     i = 0
     greets = {}
     for ind, row in dataset.iterrows():
-        greet = detect_greetings(row["body"], firstnames + lastnames)
+        greet = utils.extract_names(row["body"], nlp)
 
         for rec in row["recipients"]:
             if rec not in greets:
