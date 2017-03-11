@@ -68,7 +68,7 @@ def load_dataset(dataset_path, mail_path, train=True, flat=False):
         set_df.recipients = set_df.recipients.map(split_emails)
         # flatten recipient if needed
         if flat:
-            set_df = flatmap(set_df, "recipients", "recipient", np.string0)
+            set_df = flatmap(set_df, "recipients", "recipient", np.string_)
 
     set_df.date = pd.to_datetime(set_df.date)
     set_df.index = range(len(set_df.index))
@@ -193,4 +193,5 @@ def preprocess_bodies(dataset, type="train"):
         with open(pickle_path, "w") as f:
             pkl.dump(texts, f)
     dataset["tokens"] = pd.Series(texts)
+    dataset["tokens"] = dataset["tokens"].apply(lambda x: np.unique(x).tolist())  # remove duplicates
     return dataset

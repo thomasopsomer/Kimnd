@@ -1,8 +1,5 @@
-import random
-import operator
 import pandas as pd
 import numpy as np
-from collections import Counter
 from ast import literal_eval
 import utils
 import flat_dataset
@@ -58,6 +55,10 @@ if __name__ == "__main__":
     train_df_not_flat = utils.load_dataset(dataset_path, mail_path, train=True, flat=False)
     test_df = utils.load_dataset(dataset_path2, mail_path2, train=False)
 
+    ## TEST
+    #train_df_not_flat = train_df_not_flat[:5000]
+    #train_df = train_df[:42508]
+
     print "Preprocessing messages"
     train_df_not_flat = utils.preprocess_bodies(train_df_not_flat, type="train")
     test_df = utils.preprocess_bodies(test_df, type="test")
@@ -89,7 +90,7 @@ if __name__ == "__main__":
     # Computing and storing tw-idf of all messages
     pickle_path = "twidf_df_train.pkl"
     if path.exists(pickle_path):
-        texts = pkl.load(open(pickle_path, "rb"))
+        twidf_df = pkl.load(open(pickle_path, "rb"))
     else:
         twidf_df = pd.DataFrame(columns=['mid', 'twidf'])
         twidf_df['mid'] = train_df_not_flat['mid']
@@ -97,25 +98,23 @@ if __name__ == "__main__":
                                                          tw_idf(train_df_not_flat[train_df_not_flat['mid'] == x]['tokens'].values[0],
                                                                 idf, id2word, avg_len)
                                                          )
+        twidf_df = twidf_df.set_index('mid')['twidf'].to_dict()
         with open(pickle_path, "w") as f:
             pkl.dump(twidf_df, f)
 
-    # Creating dictionary of tokens
-    # dict_tokens = train_df_not_flat.set_index('mid')['tokens'].to_dict()
-
     # Computes the average tw idf vector (incoming)
-    dict_list_mid = train_df.groupby(["recipient", "sender"])["mid"].apply(list).to_dict()
-    for tupl in dict_list_mid.keys():
-        dict_list_mid[tupl] = np.average(twidf_df[m] for m in dict_list_mid[tupl])
+    dict_tuple_mids = train_df.groupby(["recipient", "sender"])["mid"].apply(list).to_dict()
+    for tupl in dict_tuple_mids.keys():
+        dict_tuple_mids[tupl] = np.average(np.array([twidf_df[m] for m in dict_tuple_mids[tupl]]), axis=0)
     train_df['incoming_txt'] = textual_features.incoming_text_similarity_new(
-        train_df, twidf_df, dict_list_mid)
+        train_df, twidf_df, dict_tuple_mids)
 
     # Computes the average tw idf vector (outgoing)
-    dict_list_mid = train_df.groupby(["sender", "recipient"])["mid"].apply(list).to_dict()
-    for tupl in dict_list_mid.keys():
-        dict_list_mid[tupl] = np.average(twidf_df[m] for m in dict_list_mid[tupl])
+    dict_tuple_mids = train_df.groupby(["sender", "recipient"])["mid"].apply(list).to_dict()
+    for tupl in dict_tuple_mids.keys():
+        dict_tuple_mids[tupl] = np.average(twidf_df[m] for m in dict_tuple_mids[tupl])
     train_df['outgoing_txt'] = textual_features.outoing_text_similarity_new(
-        train_df, twidf_df, dict_list_mid)
+        train_df, twidf_df, dict_tuple_mids)
 
     # Computes
 

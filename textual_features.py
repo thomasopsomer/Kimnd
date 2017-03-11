@@ -70,19 +70,20 @@ def outgoing_text_similarity(dataset, mid, user, twidf_df, n):
 def outgoing_text_similarity_new(df_flat, dico_twidf, dico_average_twidf):
     mids = np.vstack([dico_twidf[x] for x in df_flat.mid])
     mids = normalize(mids)
-    averages = np.vstack([dico_average_twidf[(row.sender, row.recipient)] for row in df_flat.iterrows()])
+    averages = np.vstack([dico_average_twidf[(row[1].sender, row[1].recipient)] for row in df_flat.iterrows()])
     averages = normalize(averages)
     # tw idf representations are normalized
-    return np.sum(mids*averages)
+    return np.sum(mids*averages, axis=1)
 
 
 def incoming_text_similarity_new(df_flat, dico_twidf, dico_average_twidf):
+    import pdb; pdb.set_trace()
     mids = np.vstack([dico_twidf[x] for x in df_flat.mid])
     mids = normalize(mids)
-    averages = np.vstack([dico_average_twidf[(row.recipient, row.sender)] for row in df_flat.iterrows()])
+    averages = np.vstack([dico_average_twidf[(row[1].recipient, row[1].sender)] for row in df_flat.iterrows()])
     averages = normalize(averages)
     # tw idf representations are normalized
-    return np.sum(mids*averages)
+    return np.sum(mids*averages, axis=1)
 
 
 if __name__ == "__main__":
