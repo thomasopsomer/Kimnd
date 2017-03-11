@@ -1,10 +1,12 @@
+# coding: utf-8
+
 import pandas as pd
 import numpy as np
 from scipy.sparse import csr_matrix
 from ast import literal_eval
 import utils
 import flat_dataset
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier
 from gow import tw_idf
 from os import path
 import cPickle as pkl
@@ -29,18 +31,17 @@ def add_recipients(df, all_emails):
     return df
 
 
-def predict(test_user, features, all_emails, reg):
+def get_test_set(test_user, features, all_emails, reg):
     """test_user: the DataFrame of the test for a specific sender
     features: the features extracted
     emails: list of all email
     reg: the trained predictor"""
     # Create a dataset with all the possible combinations (userID, mid, contactID)
     test_user = add_recipients(test_user, contacts)
-    test_user = utils.flatmap(test_user, "emails", "contact", np.string0)
+    test_user = utils.flatmap(test_user, "emails", "recipient", np.string0)
 
     # Some renaming
-    test_user = test_user.rename(columns={"sender":"user"})
-    test_user = test_user[["user", "contact", "mid"]]
+    test_user = test_user[["sender", "recipient", "mid"]]
     return test_user
 
 
@@ -100,7 +101,7 @@ if __name__ == "__main__":
     # Textual features #
     #####################
 
-    # Computing and storing tw-idf of all messages
+    print "Computing and storing tw-idf of all messages"
     pickle_path = "twidf_dico_train.pkl"
     if path.exists(pickle_path):
         twidf_dico = pkl.load(open(pickle_path, "rb"))
@@ -114,51 +115,45 @@ if __name__ == "__main__":
         with open(pickle_path, "w") as f:
             pkl.dump(twidf_dico, f)
 
+    pickle_path = "twidf_dico_test.pkl"
+    if path.exists(pickle_path):
+        twidf_dico_test = pkl.load(open(pickle_path, "rb"))
+    else:
+        twidf_dico_test = {}
+        for ind, row in test_df.iterrows():
+            if (ind+1) % 1000 == 0: print "Processesed ", ind+1
+            mid = row["mid"]
+            tokens = row["tokens"]
+            twidf_dico_test[mid] = tw_idf(tokens, idf, id2word, avg_len)
+        with open(pickle_path, "w") as f:
+            pkl.dump(twidf_dico_test, f)
+
+    print "Getting the averages dictionaries for outgoind and incoming messages"
     # Computes the average tw idf vector (incoming)
-    dict_tuple_mids = train_df.groupby(["recipient", "sender"])["mid"].apply(list).to_dict()
-    for tupl in dict_tuple_mids.keys():
-        dict_tuple_mids[tupl] = np.average(np.array([twidf_dico[m].toarray() for m in dict_tuple_mids[tupl]]), axis=0)
-        dict_tuple_mids[tupl] = csr_matrix(dict_tuple_mids[tupl])
-    train_df['incoming_txt'] = textual_features.incoming_text_similarity_new(
-        train_df, twidf_dico, dict_tuple_mids)
+    dict_tuple_mids_in = train_df.groupby(["recipient", "sender"])["mid"].apply(list).to_dict()
+    for tupl in dict_tuple_mids_in.keys():
+        dict_tuple_mids_in[tupl] = np.average(np.array([twidf_dico[m].toarray() for m in dict_tuple_mids_in[tupl]]), axis=0)
+        dict_tuple_mids_in[tupl] = csr_matrix(dict_tuple_mids_in[tupl])
+    # train_df['incoming_txt'] = textual_features.incoming_text_similarity_new(
+    #     train_df, twidf_dico, dict_tuple_mids_in)
 
     # Computes the average tw idf vector (outgoing)
-    dict_tuple_mids = train_df.groupby(["sender", "recipient"])["mid"].apply(list).to_dict()
-    for tupl in dict_tuple_mids.keys():
-        dict_tuple_mids[tupl] = np.average(np.array([twidf_dico[m].toarray() for m in dict_tuple_mids[tupl]]), axis=0)
-        dict_tuple_mids[tupl] = csr_matrix(dict_tuple_mids[tupl])
-    train_df['outgoing_txt'] = textual_features.outoing_text_similarity_new(
-        train_df, twidf_dico, dict_tuple_mids)
+    dict_tuple_mids_out = train_df.groupby(["sender", "recipient"])["mid"].apply(list).to_dict()
+    for tupl in dict_tuple_mids_out.keys():
+        dict_tuple_mids_out[tupl] = np.average(np.array([twidf_dico[m].toarray() for m in dict_tuple_mids_out[tupl]]), axis=0)
+        dict_tuple_mids_out[tupl] = csr_matrix(dict_tuple_mids_out[tupl])
+    # train_df['outgoing_txt'] = textual_features.outgoing_text_similarity_new(
+    #     train_df, twidf_dico, dict_tuple_mids_out)
 
-    # Computes
-
-    def get_outgoing_mid(mid, df, list_sender, twidf_df, n):
-        df_all_outgoing = pd.DataFrame(columns=['mid', 'user', 'contact', 'outgoing_text'])
-        for user in list_sender:
-            df_all_outgoing.append(textual_features.outgoing_text_similarity(
-                df, mid, user, twidf_df, n)
-            )
-        return df_all_outgoing
-
-    def get_outgoing_all(df, list_sender, twidf_df, n):
-        df_all_outgoing = df.mid.map(lambda mid: get_outgoing_mid(mid, df, list_sender, twidf_df, n))
-        return df_all_outgoing
-
-    # n = 5  # number of similar messages
-    # list_sender = np.unique(train_df_not_flat['sender'].tolist())
-    # list_recipients = np.unique(train_df['recipient'].tolist())
-    # df_all_outgoing = flat_dataset.parallelize_dataframe(
-    #     train_df_not_flat, get_outgoing_all, 4, log=False, list_sender=list_sender, twidf_df=twidf_df, n=n)
+    # text_features = train_df[["sender", "recipient", "mid", "outgoing_txt", "incoming_txt"]]
 
     ###############
     # Classifier #
     ###############
 
     print "Preparing for the ranking"
-    # Extract all the emails of the database and attribute an unique id to it
+    # Extract all the emails of the database
     emails = set(train_df["sender"]).union(set(train_df["recipient"]))
-
-    import pdb; pdb.set_trace()
 
     # Get all contacts for each user
     contacts = time_features.groupby("user").contact.apply(set)
@@ -166,8 +161,16 @@ if __name__ == "__main__":
     print "Generating positive and negative pairs"
     # Get the positive and negative pairs for the classifier
     pairs_train = flat_dataset.make_flat_dataset(train_df_not_flat, contacts, 1.0, num_cores=4)
+
+    # Adding textual features
+    print "Textual features for the pairs"
+    pairs_train['outgoing_txt'] = textual_features.outgoing_text_similarity_new(
+        pairs_train, twidf_dico, dict_tuple_mids_out)
+    pairs_train['incoming_txt'] = textual_features.incoming_text_similarity_new(pairs_train, twidf_dico, dict_tuple_mids_in)
+
+    # Renaming
     pairs_train = pairs_train.rename(columns={"sender":"user", "recipient": "contact"})
-    pairs_train = pairs_train[["user", "contact", "mid", "label"]]
+    pairs_train = pairs_train[["user", "contact", "mid", "incoming_txt", "outgoing_txt", "label"]]
 
     print "Training"
     # Train arrays
@@ -179,14 +182,22 @@ if __name__ == "__main__":
     X_train = X_train.values
 
     # Training
-    reg = RandomForestRegressor(n_estimators=500, random_state=42, oob_score=True)
-    reg.fit(X_train, y_train)
+    clf = RandomForestClassifier(n_estimators=50, random_state=42, oob_score=True, n_jobs=-1)
+    clf.fit(X_train, y_train)
+    print clf.oob_score_
 
     print "Getting the test set ready"
     # Prediction
-    test_pairs = test_df.groupby("sender").apply(
-        lambda test_user: predict(test_user, time_features, contacts, reg))
+    test_pairs = test_df.groupby("sender").apply(lambda test_user: get_test_set(test_user, time_features, contacts, clf))
     test_pairs = test_pairs.reset_index(drop=True)
+
+    print "Adding textual features to the test set"
+    test_pairs['outgoing_txt'] = textual_features.outgoing_text_similarity_new(
+        test_pairs, twidf_dico_test, dict_tuple_mids_out)
+    test_pairs['incoming_txt'] = textual_features.incoming_text_similarity_new(
+        test_pairs, twidf_dico_test, dict_tuple_mids_in)
+
+    test_pairs = test_pairs.rename(columns={"sender":"user", "recipient": "contact"})
 
     # Getting the arrays for the prediction
     X_test = test_pairs.merge(time_features, how="left", on=["contact", "user"])
@@ -197,12 +208,13 @@ if __name__ == "__main__":
 
     print "Predictions"
     # Predictions
-    pred = reg.predict(X_test)
+    pred = clf.predict_proba(X_test)[:,1]
     pred = pd.DataFrame(pred, columns=["pred"], index=test_index).reset_index()
     
     # We take the top 10 for each mail
-    res = pred.groupby("mid").apply(lambda row: row.sort_values(by="pred", ascending=False).head(10)).reset_index(drop=True)
+    res = pred.groupby("mid").apply(lambda row: row.sort_values(
+        by="pred", ascending=False).head(10)).reset_index(drop=True)
     res = res[["mid", "contact"]]
     res = res.groupby("mid").contact.apply(list).reset_index()
     res["contact"] = res.contact.map(lambda x: ' '.join(x))
-    res.to_csv("results_time.csv", header=["mid", "recipients"], index=False)
+    res.to_csv("results_time_text_clf.csv", header=["mid", "recipients"], index=False)
