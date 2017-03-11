@@ -43,7 +43,9 @@ def flatmap(df, col, new_col_name, new_col_type=None):
     return res
 
 
-def load_dataset(dataset_path, mail_path, train=True, flat=False):
+def load_dataset(dataset_path="data/training_set.csv",
+                 mail_path="data/training_info.csv",
+                 train=True, flat=False):
     """
     Load and preprocess the dataset
     Explode the mail ids (mids)
