@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 import string
+import operator
 
 from collections import Counter
 
@@ -24,17 +25,25 @@ def search_greetings(dataset):
     """
     firstnames = parse_firstnames(dataset)
     lastnames = parse_lastnames(dataset)
+    names = firstnames + lastnames
     # nlp = get_custom_spacy()
     i = 0
     greets = {}
     for ind, row in dataset.iterrows():
         # greet = utils.extract_names(row["body"], nlp)
-        detect_greetings(row["body"], firstnames+ lastnames)
+        greet = detect_greetings(row["body"], names)
         for rec in row["recipients"]:
             if rec not in greets:
-                greets[rec] = cnt = Counter()
+                greets[rec] = {}
             else:
-                greets[rec].update(greet)
+                cnt = Counter(greet)
+                for gr in cnt.keys():
+                    if gr not in greets[rec]:
+                        greets[rec][gr] = 0 
+                    greets[rec][gr] += float(cnt[gr]) / len(row["recipients"])
+    for rec in greets.keys():
+        greets[rec] = sorted(
+            greets[rec].items(), key=operator.itemgetter(1), reverse = True)
     import pdb; pdb.set_trace()
 
 
