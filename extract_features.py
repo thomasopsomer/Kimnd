@@ -94,19 +94,19 @@ if __name__ == "__main__":
     train_df_not_flat = utils.preprocess_bodies(train_df_not_flat, type="train")
     test_df = utils.preprocess_bodies(test_df, type="test")
 
-    # print "Extracting global text features"
-    # idf_path = "idf.pkl"
-    # if path.exists(idf_path):
-    #     idf = pkl.load(open(idf_path, "rb"))
-    #     id2word = pkl.load(open("id2word.pkl", "rb"))
-    #     texts = list(train_df_not_flat["tokens"])
-    #     avg_len = sum(len(terms) for terms in texts) / len(texts)
-    # else:
-    #     idf, id2word, avg_len = textual_features.get_global_text_features(list(train_df_not_flat["tokens"]))
-    #     with open(idf_path, "w") as f:
-    #         pkl.dump(idf, f)
-    #     with open("id2word.pkl", "w") as f:
-    #         pkl.dump(id2word, f)
+    print "Extracting global text features"
+    idf_path = "idf.pkl"
+    if path.exists(idf_path):
+        idf = pkl.load(open(idf_path, "rb"))
+        id2word = pkl.load(open("id2word.pkl", "rb"))
+        texts = list(train_df_not_flat["tokens"])
+        avg_len = sum(len(terms) for terms in texts) / len(texts)
+    else:
+        idf, id2word, avg_len = textual_features.get_global_text_features(list(train_df_not_flat["tokens"]))
+        with open(idf_path, "w") as f:
+            pkl.dump(idf, f)
+        with open("id2word.pkl", "w") as f:
+            pkl.dump(id2word, f)
 
     #####################
     # Temporal features #
@@ -130,81 +130,81 @@ if __name__ == "__main__":
     # Textual features #
     #####################
 
-    # print "Computing and storing tw-idf of all messages"
-    # pickle_path = "twidf_dico_train.pkl"
-    # if path.exists(pickle_path):
-    #     twidf_dico = pkl.load(open(pickle_path, "rb"))
-    # else:
-    #     twidf_dico = {}
-    #     for ind, row in train_df_not_flat.iterrows():
-    #         if (ind+1) % 1000 == 0: print "Processesed ", ind+1
-    #         mid = row["mid"]
-    #         tokens = row["tokens"]
-    #         twidf_dico[mid] = tw_idf(tokens, idf, id2word, avg_len)
-    #     with open(pickle_path, "w") as f:
-    #         pkl.dump(twidf_dico, f)
+    print "Computing and storing tw-idf of all messages"
+    pickle_path = "twidf_dico_train.pkl"
+    if path.exists(pickle_path):
+        twidf_dico = pkl.load(open(pickle_path, "rb"))
+    else:
+        twidf_dico = {}
+        for ind, row in train_df_not_flat.iterrows():
+            if (ind+1) % 1000 == 0: print "Processesed ", ind+1
+            mid = row["mid"]
+            tokens = row["tokens"]
+            twidf_dico[mid] = tw_idf(tokens, idf, id2word, avg_len)
+        with open(pickle_path, "w") as f:
+            pkl.dump(twidf_dico, f)
 
-    # pickle_path = "twidf_dico_test.pkl"
-    # if path.exists(pickle_path):
-    #     twidf_dico_test = pkl.load(open(pickle_path, "rb"))
-    # else:
-    #     twidf_dico_test = {}
-    #     for ind, row in test_df.iterrows():
-    #         if (ind+1) % 1000 == 0: print "Processesed ", ind+1
-    #         mid = row["mid"]
-    #         tokens = row["tokens"]
-    #         twidf_dico_test[mid] = tw_idf(tokens, idf, id2word, avg_len)
-    #     with open(pickle_path, "w") as f:
-    #         pkl.dump(twidf_dico_test, f)
+    pickle_path = "twidf_dico_test.pkl"
+    if path.exists(pickle_path):
+        twidf_dico_test = pkl.load(open(pickle_path, "rb"))
+    else:
+        twidf_dico_test = {}
+        for ind, row in test_df.iterrows():
+            if (ind+1) % 1000 == 0: print "Processesed ", ind+1
+            mid = row["mid"]
+            tokens = row["tokens"]
+            twidf_dico_test[mid] = tw_idf(tokens, idf, id2word, avg_len)
+        with open(pickle_path, "w") as f:
+            pkl.dump(twidf_dico_test, f)
 
     # if TEST:
     #     twidf_dico_test = twidf_dico
 
-    # print "Getting the averages dictionaries for outgoing and incoming messages"
-    # # Computes the average tw idf vector (incoming)
-    # dict_tuple_mids_in = train_df.groupby(["recipient", "sender"])["mid"].apply(list).to_dict()
-    # for tupl in dict_tuple_mids_in.keys():
-    #     dict_tuple_mids_in[tupl] = np.average(np.array([twidf_dico[m].toarray() for m in dict_tuple_mids_in[tupl]]), axis=0)
-    #     dict_tuple_mids_in[tupl] = csr_matrix(dict_tuple_mids_in[tupl])
+    print "Getting the averages dictionaries for outgoing and incoming messages"
+    # Computes the average tw idf vector (incoming)
+    dict_tuple_mids_in = train_df.groupby(["recipient", "sender"])["mid"].apply(list).to_dict()
+    for tupl in dict_tuple_mids_in.keys():
+        dict_tuple_mids_in[tupl] = np.average(np.array([twidf_dico[m].toarray() for m in dict_tuple_mids_in[tupl]]), axis=0)
+        dict_tuple_mids_in[tupl] = csr_matrix(dict_tuple_mids_in[tupl])
 
-    # # Computes the average tw idf vector (outgoing)
-    # dict_tuple_mids_out = train_df.groupby(["sender", "recipient"])["mid"].apply(list).to_dict()
-    # for tupl in dict_tuple_mids_out.keys():
-    #     dict_tuple_mids_out[tupl] = np.average(np.array([twidf_dico[m].toarray() for m in dict_tuple_mids_out[tupl]]), axis=0)
-    #     dict_tuple_mids_out[tupl] = csr_matrix(dict_tuple_mids_out[tupl])
+    # Computes the average tw idf vector (outgoing)
+    dict_tuple_mids_out = train_df.groupby(["sender", "recipient"])["mid"].apply(list).to_dict()
+    for tupl in dict_tuple_mids_out.keys():
+        dict_tuple_mids_out[tupl] = np.average(np.array([twidf_dico[m].toarray() for m in dict_tuple_mids_out[tupl]]), axis=0)
+        dict_tuple_mids_out[tupl] = csr_matrix(dict_tuple_mids_out[tupl])
 
     ##### TF-IDF #####
 
-    tf = TfidfVectorizer(analyzer=lambda x: x, ngram_range=(1, 1), min_df=5, stop_words='english')
+    # tf = TfidfVectorizer(analyzer=lambda x: x, ngram_range=(1, 1), min_df=5, stop_words='english')
 
-    print "Computing and storing tf-idf of all messages"
-    pickle_path = "tfidf_dico_train.pkl"
-    if path.exists(pickle_path):
-        tfidf_dico = pkl.load(open(pickle_path, "rb"))
-    else:
-        tfidf_dico = {}
-        tfidf_matrix = tf.fit_transform(train_df_not_flat.tokens)
-        ind = 0
-        for row in train_df_not_flat.iterrows():
-            if (ind+1) % 1000 == 0: print "Processed ", ind+1
-            tfidf_dico[row[1].mid] = tfidf_matrix[ind]
-            ind += 1
-        with open(pickle_path, "w") as f:
-            pkl.dump(tfidf_dico, f)
+    # print "Computing and storing tf-idf of all messages"
+    # pickle_path = "tfidf_dico_train.pkl"
+    # if path.exists(pickle_path):
+    #     tfidf_dico = pkl.load(open(pickle_path, "rb"))
+    # else:
+    #     tfidf_dico = {}
+    #     tfidf_matrix = tf.fit_transform(train_df_not_flat.tokens)
+    #     ind = 0
+    #     for row in train_df_not_flat.iterrows():
+    #         if (ind+1) % 1000 == 0: print "Processed ", ind+1
+    #         tfidf_dico[row[1].mid] = tfidf_matrix[ind]
+    #         ind += 1
+    #     with open(pickle_path, "w") as f:
+    #         pkl.dump(tfidf_dico, f)
 
-    pickle_path = "tfidf_dico_test.pkl"
-    if path.exists(pickle_path):
-        tfidf_dico_test = pkl.load(open(pickle_path, "rb"))
-    else:
-        tfidf_dico_test = {}
-        tfidf_matrix_test = tf.transform(test_df.tokens)
-        ind = 0
-        for row in test_df.iterrows():
-            if (ind+1) % 1000 == 0: print "Processed ", ind+1
-            tfidf_dico_test[row[1].mid] = tfidf_matrix_test[ind]
-            ind += 1
-        with open(pickle_path, "w") as f:
-            pkl.dump(tfidf_dico_test, f)
+    # pickle_path = "tfidf_dico_test.pkl"
+    # if path.exists(pickle_path):
+    #     tfidf_dico_test = pkl.load(open(pickle_path, "rb"))
+    # else:
+    #     tfidf_dico_test = {}
+    #     tfidf_matrix_test = tf.transform(test_df.tokens)
+    #     ind = 0
+    #     for row in test_df.iterrows():
+    #         if (ind+1) % 1000 == 0: print "Processed ", ind+1
+    #         tfidf_dico_test[row[1].mid] = tfidf_matrix_test[ind]
+    #         ind += 1
+    #     with open(pickle_path, "w") as f:
+    #         pkl.dump(tfidf_dico_test, f)
 
     # if TEST:
     #     tfidf_dico_test = tfidf_dico
@@ -239,14 +239,14 @@ if __name__ == "__main__":
 
     # Adding textual features
     print "Textual features for the pairs"
-    # pairs_train['outgoing_txt'] = textual_features.outgoing_text_similarity_new(
-    #     pairs_train, twidf_dico, dict_tuple_mids_out)
-    # pairs_train['incoming_txt'] = textual_features.incoming_text_similarity_new(
-    #     pairs_train, twidf_dico, dict_tuple_mids_in)
     pairs_train['outgoing_txt'] = textual_features.outgoing_text_similarity_new(
-        pairs_train, tfidf_dico, dict_tuple_mids_out)
+        pairs_train, twidf_dico, dict_tuple_mids_out)
     pairs_train['incoming_txt'] = textual_features.incoming_text_similarity_new(
-        pairs_train, tfidf_dico, dict_tuple_mids_in)
+        pairs_train, twidf_dico, dict_tuple_mids_in)
+    # pairs_train['outgoing_txt'] = textual_features.outgoing_text_similarity_new(
+    #     pairs_train, tfidf_dico, dict_tuple_mids_out)
+    # pairs_train['incoming_txt'] = textual_features.incoming_text_similarity_new(
+    #     pairs_train, tfidf_dico, dict_tuple_mids_in)
 
     # Renaming
     pairs_train = pairs_train.rename(columns={"sender":"user", "recipient": "contact"})
@@ -273,14 +273,14 @@ if __name__ == "__main__":
     test_pairs = test_pairs.reset_index(drop=True)
 
     print "Adding textual features to the test set"
-    # test_pairs['outgoing_txt'] = textual_features.outgoing_text_similarity_new(
-    #     test_pairs, twidf_dico, dict_tuple_mids_out)
-    # test_pairs['incoming_txt'] = textual_features.incoming_text_similarity_new(
-    #     test_pairs, twidf_dico, dict_tuple_mids_in)
     test_pairs['outgoing_txt'] = textual_features.outgoing_text_similarity_new(
-        test_pairs, tfidf_dico_test, dict_tuple_mids_out)
+        test_pairs, twidf_dico, dict_tuple_mids_out)
     test_pairs['incoming_txt'] = textual_features.incoming_text_similarity_new(
-        test_pairs, tfidf_dico_test, dict_tuple_mids_in)
+        test_pairs, twidf_dico, dict_tuple_mids_in)
+    # test_pairs['outgoing_txt'] = textual_features.outgoing_text_similarity_new(
+    #     test_pairs, tfidf_dico_test, dict_tuple_mids_out)
+    # test_pairs['incoming_txt'] = textual_features.incoming_text_similarity_new(
+    #     test_pairs, tfidf_dico_test, dict_tuple_mids_in)
 
     test_pairs = test_pairs.rename(columns={"sender":"user", "recipient": "contact"})
 
