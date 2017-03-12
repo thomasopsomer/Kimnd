@@ -8,12 +8,12 @@ from collections import Counter
 from gensim import corpora, models
 import spacy
 
-from utils import load_dataset, preprocess_mail_body
+from utils import load_dataset, bow_mail_body
 from average_precision import mapk
 
+from spacy_utils import get_custom_spacy
 import pdb
-
-nlp = spacy.load('en', parser=False)
+nlp = get_custom_spacy()
 
 path_to_data = "data"
 lda_path = "LDA/LDA_data_lda"
@@ -42,12 +42,13 @@ n_topics = lda.num_topics
 
 def get_lda_score(text, lda, nlp, dic):
     topic_score = np.zeros(lda.num_topics)
-    doc = preprocess_mail_body(text, nlp)
+    doc = bow_mail_body(text, nlp)
     bow = dic.doc2bow(doc)
     topic_score_tups = lda.get_document_topics(bow)
     for ind, score in topic_score_tups:
         topic_score[ind] = score
     return topic_score
+
 
 print "lda loaded"
 # save all unique sender names
@@ -63,7 +64,6 @@ for tupl in dataset.itertuples():
     sender = tupl.sender
 
     topic_score = get_lda_score(tupl.body, lda, nlp, id2word)
-    pdb.set_trace()
     recipients = tupl.recipients
     # if sender already have an address boo update it
     if sender in address_books:

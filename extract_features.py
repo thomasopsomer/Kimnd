@@ -2,14 +2,18 @@
 
 import pandas as pd
 import numpy as np
+import cPickle as pkl
+from os import path
+
 from scipy.sparse import csr_matrix
+from sklearn.ensemble import RandomForestClassifier
+
 from ast import literal_eval
 import utils
 import flat_dataset
-from sklearn.ensemble import RandomForestClassifier
 from gow import tw_idf
-from os import path
-import cPickle as pkl
+
+from greetings import greeting_value, search_greetings, parse_lastnames, parse_firstnames
 import temporal_features
 import textual_features
 from average_precision import mapk
@@ -82,6 +86,8 @@ if __name__ == "__main__":
     train_df = utils.load_dataset(dataset_path, mail_path, train=True, flat=True)
     train_df_not_flat = utils.load_dataset(dataset_path, mail_path, train=True, flat=False)
     test_df = utils.load_dataset(dataset_path2, mail_path2, train=False)
+
+
 
     ## TEST
     if TEST:
@@ -189,6 +195,7 @@ if __name__ == "__main__":
             if (ind+1) % 1000 == 0: print "Processed ", ind+1
             tfidf_dico[row[1].mid] = tfidf_matrix[ind]
             ind += 1
+
         with open(pickle_path, "w") as f:
             pkl.dump(tfidf_dico, f)
 
@@ -203,13 +210,20 @@ if __name__ == "__main__":
             if (ind+1) % 1000 == 0: print "Processed ", ind+1
             tfidf_dico_test[row[1].mid] = tfidf_matrix_test[ind]
             ind += 1
+
         with open(pickle_path, "w") as f:
             pkl.dump(tfidf_dico_test, f)
 
     # if TEST:
     #     tfidf_dico_test = tfidf_dico
 
-    print "Getting the averages dictionaries for outgoing and incoming messages"
+    print "Getting the grreting features"
+    # Greetings #
+    greets, name = search_greetings(train_df_not_flat)
+
+
+    print "Getting the averages dictionaries for outgoind and incoming messages"
+
     # Computes the average tw idf vector (incoming)
     dict_tuple_mids_in = train_df.groupby(["recipient", "sender"])["mid"].apply(list).to_dict()
     for tupl in dict_tuple_mids_in.keys():
@@ -235,7 +249,8 @@ if __name__ == "__main__":
 
     print "Generating positive and negative pairs"
     # Get the positive and negative pairs for the classifier
-    pairs_train = flat_dataset.make_flat_dataset(train_df_not_flat, contacts, 1.0, num_cores=4)
+    pairs_train = flat_dataset.make_flat_dataset(train_df_not_flat, contacts,
+                                                 1.0, num_cores=4)
 
     # Adding textual features
     print "Textual features for the pairs"
@@ -248,9 +263,19 @@ if __name__ == "__main__":
     pairs_train['incoming_txt'] = textual_features.incoming_text_similarity_new(
         pairs_train, tfidf_dico, dict_tuple_mids_in)
 
+    greeting_feature = np.empty(pairs_train['incoming_txt'].shape[0])
+    ind = 0
+    for row in pairs_train.itertuples():
+            greeting_feature[ind] = greeting_value(
+                row.body, row.recipient, greets, name)
+            ind += 1
+    pairs_train["greet"] = greeting_feature
     # Renaming
     pairs_train = pairs_train.rename(columns={"sender":"user", "recipient": "contact"})
-    pairs_train = pairs_train[["user", "contact", "mid", "incoming_txt", "outgoing_txt", "label"]]
+    pairs_train = pairs_train[["user", "contact", "mid", "incoming_txt",
+                               "outgoing_txt", "greet", "label"]]
+
+
 
     print "Training"
     # Train arrays
@@ -262,7 +287,8 @@ if __name__ == "__main__":
     X_train = X_train.values
 
     # Training
-    clf = RandomForestClassifier(n_estimators=50, random_state=42, oob_score=True, n_jobs=-1)
+    clf = RandomForestClassifier(n_estimators=50, random_state=42, oob_score=True,
+                                 n_jobs=-1)
     clf.fit(X_train, y_train)
     print clf.oob_score_
 
@@ -282,6 +308,13 @@ if __name__ == "__main__":
     test_pairs['incoming_txt'] = textual_features.incoming_text_similarity_new(
         test_pairs, tfidf_dico_test, dict_tuple_mids_in)
 
+    greeting_feature = np.empty(test_pairs['incoming_txt'].shape[0])
+    index = 0
+    for row in test_pairs.itertuples():
+            greeting_feature[index] = greeting_value(
+                row.body, row.recipient, greets, name)
+    test_pairs["greet"] = greeting_feature
+
     test_pairs = test_pairs.rename(columns={"sender":"user", "recipient": "contact"})
 
     # Getting the arrays for the prediction
@@ -295,7 +328,7 @@ if __name__ == "__main__":
     # Predictions
     pred = clf.predict_proba(X_test)[:, clf.classes_ == 1]
     pred = pd.DataFrame(pred, columns=["pred"], index=test_index).reset_index()
-    
+
     # We take the top 10 for each mail
     res = pred.groupby("mid").apply(lambda row: row.sort_values(by="pred", ascending=False).head(10)).reset_index(drop=True)
     res = res[["mid", "contact"]]

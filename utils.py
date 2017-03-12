@@ -52,6 +52,7 @@ def load_dataset(dataset_path="data/training_set.csv",
     Merge with content of email to get the body
     Deal with the date issues and set the date to datetime
     """
+
     set_df = pd.read_csv(dataset_path)
     mail_df = pd.read_csv(mail_path)
     # flatmap mail ids 'mids'

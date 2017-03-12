@@ -18,7 +18,35 @@ extendedstopwords += ("2000", "product", "call", "guy", "enron", "businesses",
                       "quick")
 
 
-def search_greetings(dataset):
+def greeting_value(body, recipient, greets, names):
+    """
+    for a message body and a recipient, return 1 if the message contains an
+    appropriate greeting -1 if the message contains a greeting for somebody
+    else and 0 otherwise
+    """
+    greet = detect_greetings(body, names)
+
+    rec_names = recipient.split('@')[0]
+    if '.' in recipient:
+        rec_names = rec_names.split(".")
+    else:
+        rec_names = [rec_names]
+    rec_names = map(lambda n: (n, 1), rec_names)
+
+    # a function that create a function that score the best
+    def filtre(threshold):
+        return lambda word: (word[0] in greet) and (word[1] > threshold)
+
+    if len(greet) == 0:
+        return 0.
+    # import pdb; pdb.set_trace()
+    if len(filter(filtre(0.5), rec_names + greets[recipient])) > 0:
+        return 1
+    else:
+        return -1
+
+
+def search_greetings(dataset, threshold=0.2):
     """
     we create a dictionary where we list the names of all 'greetings' used for
     a recipient
@@ -39,12 +67,18 @@ def search_greetings(dataset):
                 cnt = Counter(greet)
                 for gr in cnt.keys():
                     if gr not in greets[rec]:
-                        greets[rec][gr] = 0 
+                        greets[rec][gr] = 0
                     greets[rec][gr] += float(cnt[gr]) / len(row["recipients"])
     for rec in greets.keys():
         greets[rec] = sorted(
-            greets[rec].items(), key=operator.itemgetter(1), reverse = True)
-    import pdb; pdb.set_trace()
+            greets[rec].items(), key=operator.itemgetter(1), reverse=True)
+
+    # filter extremes
+    for rec in greets.keys():
+        greets[rec] = filter(lambda w: w[1] > threshold, greets[rec])
+
+
+    return greets
 
 
 def parse_firstnames(dataset):
@@ -148,4 +182,14 @@ def parse_names_from_dataset(df):
 if __name__ == '__main__':
     from utils import load_dataset
     df = load_dataset()
-    search_greetings(df)
+    greets = search_greetings(df)
+    names = parse_lastnames(df) + parse_firstnames(df)
+    i = 0
+    for id, row in df.iterrows():
+        i += 1
+        if i == 20:
+            break
+        print "\t", greeting_value(row["body"], row["recipients"][0], greets, names)
+        print row["body"]
+        print row["recipients"][0]
+        print "\n"

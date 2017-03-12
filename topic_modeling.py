@@ -10,7 +10,8 @@ from gensim import corpora, models
 import pyLDAvis
 import pyLDAvis.gensim
 
-from utils import preprocess_mail_body
+from utils import bow_mail_body
+from spacy_utils import get_custom_spacy
 
 
 def flatten_topics(row, nb_topics):
@@ -21,7 +22,7 @@ def flatten_topics(row, nb_topics):
 
 
 def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
-                nb_topics=4444, alpha=.0025):
+                nb_topics=4, alpha=.0025):
     print "Loading data"
     training_info = pd.read_csv(path.join(data_path, "training_info.csv"),
                                 sep=',', header=0).set_index("mid")
@@ -34,10 +35,10 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
     if load_path is None:
         texts = texts.str.decode('utf-8')
         print "Loading Spacy"
-        nlp = spacy.load('en', parser=False)
+        nlp = get_custom_spacy()
 
         print "Preprocessing mails"
-        texts = texts.apply(preprocess_mail_body, args=(nlp,))
+        texts = texts.apply(bow_mail_body, args=(nlp,))
 
         texts = list(texts)
 
