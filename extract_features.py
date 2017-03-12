@@ -14,6 +14,7 @@ import temporal_features
 import textual_features
 from average_precision import mapk
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn import svm
 
 
 # Get the address book of each user
@@ -33,14 +34,14 @@ def add_recipients(df, all_emails):
     return df
 
 
-def get_test_set(test_user, features, all_emails, reg):
+def get_test_set(test_user):
     """test_user: the DataFrame of the test for a specific sender
     features: the features extracted
     emails: list of all email
     reg: the trained predictor"""
     # Create a dataset with all the possible combinations (userID, mid, contactID)
     test_user = add_recipients(test_user, contacts)
-    test_user = utils.flatmap(test_user, "emails", "recipient", np.string0)
+    test_user = utils.flatmap(test_user, "emails", "recipient", np.string_)
 
     # Some renaming
     test_user = test_user[["sender", "recipient", "mid"]]
@@ -206,8 +207,8 @@ if __name__ == "__main__":
         with open(pickle_path, "w") as f:
             pkl.dump(tfidf_dico_test, f)
 
-    # if TEST:
-    #     tfidf_dico_test = tfidf_dico
+    if TEST:
+        tfidf_dico_test = tfidf_dico
 
     print "Getting the averages dictionaries for outgoing and incoming messages"
     # Computes the average tw idf vector (incoming)
@@ -238,7 +239,7 @@ if __name__ == "__main__":
     pairs_train = flat_dataset.make_flat_dataset(train_df_not_flat, contacts, 1.0, num_cores=4)
 
     # Adding textual features
-    print "Textual features for the pairs"
+    print "Textual features for the train pairs"
     # pairs_train['outgoing_txt'] = textual_features.outgoing_text_similarity_new(
     #     pairs_train, twidf_dico, dict_tuple_mids_out)
     # pairs_train['incoming_txt'] = textual_features.incoming_text_similarity_new(
@@ -252,24 +253,9 @@ if __name__ == "__main__":
     pairs_train = pairs_train.rename(columns={"sender":"user", "recipient": "contact"})
     pairs_train = pairs_train[["user", "contact", "mid", "incoming_txt", "outgoing_txt", "label"]]
 
-    print "Training"
-    # Train arrays
-    X_train = pairs_train.merge(time_features, how="left", on=["contact", "user"])
-    X_train = X_train.fillna(0)
-    y_train = X_train["label"].values
-    X_train = X_train.set_index(["contact", "mid", "user"])
-    X_train = X_train.drop(["label"], axis=1)
-    X_train = X_train.values
-
-    # Training
-    clf = RandomForestClassifier(n_estimators=50, random_state=42, oob_score=True, n_jobs=-1)
-    clf.fit(X_train, y_train)
-    print clf.oob_score_
-
     print "Getting the test set ready"
-    # Prediction
     test_pairs = test_df.groupby("sender").apply(
-        lambda test_user: get_test_set(test_user, time_features, contacts, clf))
+        lambda test_user: get_test_set(test_user))
     test_pairs = test_pairs.reset_index(drop=True)
 
     print "Adding textual features to the test set"
@@ -282,30 +268,52 @@ if __name__ == "__main__":
     test_pairs['incoming_txt'] = textual_features.incoming_text_similarity_new(
         test_pairs, tfidf_dico_test, dict_tuple_mids_in)
 
-    test_pairs = test_pairs.rename(columns={"sender":"user", "recipient": "contact"})
+    test_pairs = test_pairs.rename(columns={"sender": "user", "recipient": "contact"})
 
-    # Getting the arrays for the prediction
-    X_test = test_pairs.merge(time_features, how="left", on=["contact", "user"])
-    X_test = X_test.fillna(0)
-    X_test = X_test.set_index(["contact", "mid", "user"])
-    test_index = X_test.index
-    X_test = X_test.values
+    print "Training"
+    # Train arrays
+    scores = []
+    list_sender = np.unique(train_df_not_flat['sender'].tolist())
+    for user in list_sender:
+        pairs_train_user = pairs_train[pairs_train.user == user]
+        X_train = pairs_train_user.merge(time_features, how="left", on=["contact", "user"])
+        X_train = X_train.fillna(0)
+        y_train = X_train["label"].values
+        X_train = X_train.set_index(["contact", "mid", "user"])
+        X_train = X_train.drop(["label"], axis=1)
+        X_train = X_train.values
 
-    print "Predictions"
-    # Predictions
-    pred = clf.predict_proba(X_test)[:, clf.classes_ == 1]
-    pred = pd.DataFrame(pred, columns=["pred"], index=test_index).reset_index()
-    
-    # We take the top 10 for each mail
-    res = pred.groupby("mid").apply(lambda row: row.sort_values(by="pred", ascending=False).head(10)).reset_index(drop=True)
-    res = res[["mid", "contact"]]
-    res = res.groupby("mid").contact.apply(list).reset_index()
-    res["recipients"] = res.contact.map(lambda x: ' '.join(x))
-    if not TEST:
-        res.to_csv("results_time_text_clf.csv", header=["mid", "recipients"], index=False)
+        # Training
+        clf = RandomForestClassifier(n_estimators=50, random_state=42, oob_score=True, n_jobs=-1)
+        clf.fit(X_train, y_train)
+        print clf.oob_score_
 
-    # results
-    if TEST:
-        res = res.sort_values(by="mid")
-        recips_test = recips_test.sort_values(by="mid")
-        print mapk(recips_test["recipients"].tolist(), res["contact"].tolist())
+        pairs_test_user = test_pairs[test_pairs.user == user]
+        # Getting the arrays for the prediction
+        X_test = pairs_test_user.merge(time_features, how="left", on=["contact", "user"])
+        X_test = X_test.fillna(0)
+        X_test = X_test.set_index(["contact", "mid", "user"])
+        test_index = X_test.index
+        X_test = X_test.values
+
+        print "Predictions"
+        # Predictions
+        pred = clf.predict_proba(X_test)[:, clf.classes_ == 1]
+        pred = pd.DataFrame(pred, columns=["pred"], index=test_index).reset_index()
+
+        # We take the top 10 for each mail
+        res = pred.groupby("mid").apply(lambda row: row.sort_values(by="pred", ascending=False).head(10)).reset_index(drop=True)
+        res = res[["mid", "contact"]]
+        res = res.groupby("mid").contact.apply(list).reset_index()
+        res["recipients"] = res.contact.map(lambda x: ' '.join(x))
+        if not TEST:
+            res.to_csv("results_time_text_clf.csv", header=["mid", "recipients"], index=False)
+
+        # results
+        if TEST:
+            res = res.sort_values(by="mid")
+            recips_test = recips_test.sort_values(by="mid")
+            print mapk(recips_test["recipients"].tolist(), res["contact"].tolist())
+            scores.append(mapk(recips_test["recipients"].tolist(), res["contact"].tolist()))
+
+    print "Final mean score:", np.mean(scores)
