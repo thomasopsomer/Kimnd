@@ -207,8 +207,8 @@ if __name__ == "__main__":
         with open(pickle_path, "w") as f:
             pkl.dump(tfidf_dico_test, f)
 
-    if TEST:
-        tfidf_dico_test = tfidf_dico
+    # if TEST:
+    #     tfidf_dico_test = tfidf_dico
 
     print "Getting the averages dictionaries for outgoing and incoming messages"
     # Computes the average tw idf vector (incoming)
@@ -273,7 +273,7 @@ if __name__ == "__main__":
     print "Training"
     # Train arrays
     scores = []
-    list_sender = np.unique(train_df_not_flat['sender'].tolist())
+    list_sender = np.unique(test_df['sender'].tolist())
     for user in list_sender:
         pairs_train_user = pairs_train[pairs_train.user == user]
         X_train = pairs_train_user.merge(time_features, how="left", on=["contact", "user"])
@@ -312,8 +312,9 @@ if __name__ == "__main__":
         # results
         if TEST:
             res = res.sort_values(by="mid")
-            recips_test = recips_test.sort_values(by="mid")
-            print mapk(recips_test["recipients"].tolist(), res["contact"].tolist())
-            scores.append(mapk(recips_test["recipients"].tolist(), res["contact"].tolist()))
+            recips_test_user = recips_test[recips_test.mid.isin(res.mid)]
+            recips_test_user = recips_test_user.sort_values(by="mid")
+            print mapk(recips_test_user["recipients"].tolist(), res["contact"].tolist())
+            scores.append(mapk(recips_test_user["recipients"].tolist(), res["contact"].tolist()))
 
     print "Final mean score:", np.mean(scores)
