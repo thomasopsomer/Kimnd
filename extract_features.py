@@ -240,7 +240,7 @@ if __name__ == "__main__":
             dict_tuple_mids_out[tupl] = csr_matrix(dict_tuple_mids_out[tupl])
 
     ###############
-    # Classifier #
+    # Classifier  #
     ###############
 
     print "Preparing for the ranking"
@@ -312,9 +312,10 @@ if __name__ == "__main__":
         X_train = X_train.values
 
         # Training
-        clf = RandomForestClassifier(n_estimators=50, random_state=42, oob_score=True, n_jobs=-1)
+        #clf = RandomForestClassifier(n_estimators=50, random_state=42, oob_score=True, n_jobs=-1)
+        clf = svm.SVC()
         clf.fit(X_train, y_train)
-        print clf.oob_score_
+        #print clf.oob_score_
 
         pairs_test_user = test_pairs[test_pairs.user == user]
         # Getting the arrays for the prediction
@@ -326,7 +327,8 @@ if __name__ == "__main__":
 
         print "Predictions"
         # Predictions
-        pred = clf.predict_proba(X_test)[:, clf.classes_ == 1]
+        #pred = clf.predict_proba(X_test)[:, clf.classes_ == 1]
+        pred = clf.predict(X_test)
         pred = pd.DataFrame(pred, columns=["pred"], index=test_index).reset_index()
 
         # We take the top 10 for each mail
