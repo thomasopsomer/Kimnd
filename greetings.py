@@ -25,7 +25,8 @@ def greeting_value(body, recipient, greets, names):
     else and 0 otherwise
     """
     greet = detect_greetings(body, names)
-
+    if recipient not in greets:
+        return 0
     rec_names = recipient.split('@')[0]
     if '.' in recipient:
         rec_names = rec_names.split(".")
@@ -36,7 +37,6 @@ def greeting_value(body, recipient, greets, names):
     # a function that create a function that score the best
     def filtre(threshold):
         return lambda word: (word[0] in greet) and (word[1] > threshold)
-
     if len(greet) == 0:
         return 0.
     # import pdb; pdb.set_trace()
@@ -78,7 +78,7 @@ def search_greetings(dataset, threshold=0.2):
         greets[rec] = filter(lambda w: w[1] > threshold, greets[rec])
 
 
-    return greets
+    return greets, names
 
 
 def parse_firstnames(dataset):
@@ -182,8 +182,8 @@ def parse_names_from_dataset(df):
 if __name__ == '__main__':
     from utils import load_dataset
     df = load_dataset()
-    greets = search_greetings(df)
-    names = parse_lastnames(df) + parse_firstnames(df)
+    greets, names = search_greetings(df)
+
     i = 0
     for id, row in df.iterrows():
         i += 1
