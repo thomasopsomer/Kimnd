@@ -8,6 +8,7 @@ from gow import top_n_similarity, compute_idf
 from gensim import corpora
 import cPickle as pkl
 from sklearn.preprocessing import normalize
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 def get_global_text_features(texts):
@@ -88,7 +89,6 @@ def incoming_text_similarity_new(df_flat, dico_twidf, dico_average_twidf):
     averages = normalize(averages)
     # tw idf representations are normalized
     return np.sum(mids.multiply(averages), axis=1)
-
 
 if __name__ == "__main__":
     dataset_path = "data/training_set.csv"
