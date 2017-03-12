@@ -95,6 +95,7 @@ if __name__ == "__main__":
     if TEST:
         train_df_not_flat, test_df = split_train_dev_set(train_df_not_flat, percent=0.06)
         train_df = train_df[train_df.mid.isin(train_df_not_flat.mid)]
+        lda = lda[lda.mid.isin(train_df_not_flat.mid)]
         recips_test = test_df[["mid", "recipients"]]
         test_df = test_df.drop("recipients", axis=1)
 
@@ -172,10 +173,6 @@ if __name__ == "__main__":
             with open(pickle_path, "w") as f:
                 pkl.dump(idf_dico_test, f)
 
-        print "Getting the greeting features"
-        # Greetings #
-        greets, name = search_greetings(train_df_not_flat)
-
         print "Getting the averages dictionaries for outgoing and incoming messages"
         # Computes the average tw idf vector (incoming)
         dict_tuple_mids_in = train_df.groupby(["recipient", "sender"])["mid"].apply(list).to_dict()
@@ -189,7 +186,8 @@ if __name__ == "__main__":
             dict_tuple_mids_out[tupl] = np.average(np.array([idf_dico[m].toarray() for m in dict_tuple_mids_out[tupl]]), axis=0)
             dict_tuple_mids_out[tupl] = csr_matrix(dict_tuple_mids_out[tupl])
 
-    ##### TF-IDF #####
+
+    ##### TF-IDF #####
 
     if TYPE_IDF == "tf_idf":
 
@@ -271,6 +269,7 @@ if __name__ == "__main__":
         ind += 1
     pairs_train["greet"] = greeting_feature
 
+
     # Renaming
     pairs_train = pairs_train.rename(columns={"sender":"user", "recipient": "contact"})
     pairs_train = pairs_train[["user", "contact", "mid", "incoming_txt", "outgoing_txt", "label", "greet"]]
@@ -304,7 +303,11 @@ if __name__ == "__main__":
     res_all = pd.DataFrame(columns=["mid", "contact", "recipients"])
     for user in list_sender:
         pairs_train_user = pairs_train[pairs_train.user == user]
+<<<<<<< HEAD
         X_train = pairs_train_user.merge(time_features, how="left", on=["contact", "user"]).merge(lda_df, how="left", on="mid")
+=======
+        X_train = pairs_train_user.merge(time_features, how="left", on=["contact", "user"]).merge(lda, how="left", on="mid")
+>>>>>>> 50732be1920af3990d89b2be61dcac7e76c1a185
         X_train = X_train.fillna(0)
         y_train = X_train["label"].values
         X_train = X_train.set_index(["contact", "mid", "user"])
@@ -318,7 +321,11 @@ if __name__ == "__main__":
 
         pairs_test_user = test_pairs[test_pairs.user == user]
         # Getting the arrays for the prediction
+<<<<<<< HEAD
         X_test = pairs_test_user.merge(time_features, how="left", on=["contact", "user"]).merge(lda_df, how="left", on="mid")
+=======
+        X_test = pairs_test_user.merge(time_features, how="left", on=["contact", "user"]).merge(lda, how="left", on="mid")
+>>>>>>> 50732be1920af3990d89b2be61dcac7e76c1a185
         X_test = X_test.fillna(0)
         X_test = X_test.set_index(["contact", "mid", "user"])
         test_index = X_test.index
