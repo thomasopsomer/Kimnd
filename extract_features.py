@@ -303,11 +303,8 @@ if __name__ == "__main__":
     res_all = pd.DataFrame(columns=["mid", "contact", "recipients"])
     for user in list_sender:
         pairs_train_user = pairs_train[pairs_train.user == user]
-<<<<<<< HEAD
         X_train = pairs_train_user.merge(time_features, how="left", on=["contact", "user"]).merge(lda_df, how="left", on="mid")
-=======
-        X_train = pairs_train_user.merge(time_features, how="left", on=["contact", "user"]).merge(lda, how="left", on="mid")
->>>>>>> 50732be1920af3990d89b2be61dcac7e76c1a185
+
         X_train = X_train.fillna(0)
         y_train = X_train["label"].values
         X_train = X_train.set_index(["contact", "mid", "user"])
@@ -321,11 +318,7 @@ if __name__ == "__main__":
 
         pairs_test_user = test_pairs[test_pairs.user == user]
         # Getting the arrays for the prediction
-<<<<<<< HEAD
         X_test = pairs_test_user.merge(time_features, how="left", on=["contact", "user"]).merge(lda_df, how="left", on="mid")
-=======
-        X_test = pairs_test_user.merge(time_features, how="left", on=["contact", "user"]).merge(lda, how="left", on="mid")
->>>>>>> 50732be1920af3990d89b2be61dcac7e76c1a185
         X_test = X_test.fillna(0)
         X_test = X_test.set_index(["contact", "mid", "user"])
         test_index = X_test.index
