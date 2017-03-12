@@ -73,8 +73,8 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
 
     print "Saving the csv with topics for each mail"
     all_docs = [lda[doc] for doc in corpus]
-    all_docs = pd.DataFrame({"mids": mids,
-                            "lda_res": all_docs}).set_index("mids")
+    all_docs = pd.DataFrame({"mid": mids,
+                            "lda_res": all_docs}).set_index("mid")
     all_docs = all_docs.apply(flatten_topics, args=(nb_topics,), axis=1)
     all_docs.to_csv("LDA_results.csv", sep=",", index=True)
 
