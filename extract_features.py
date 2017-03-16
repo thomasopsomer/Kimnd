@@ -95,7 +95,6 @@ if __name__ == "__main__":
     if TEST:
         train_df_not_flat, test_df = split_train_dev_set(train_df_not_flat, percent=0.06)
         train_df = train_df[train_df.mid.isin(train_df_not_flat.mid)]
-        lda = lda[lda.mid.isin(train_df_not_flat.mid)]
         recips_test = test_df[["mid", "recipients"]]
         test_df = test_df.drop("recipients", axis=1)
 
@@ -122,6 +121,10 @@ if __name__ == "__main__":
         time = train_df["time"].max() + 1;
         time_features = temporal_features.get_features_out_in(train_df, time)
         time_features.to_csv(time_path, sep=",", index=False)
+
+    print "Getting the greeting features"
+    # Greetings #
+    greets, name = search_greetings(train_df_not_flat)
 
     #####################
     # Textual features #
@@ -294,7 +297,7 @@ if __name__ == "__main__":
     test_pairs["greet"] = greeting_feature
 
     test_pairs = test_pairs.rename(columns={"sender": "user", "recipient": "contact"})
-    test_pairs = test_pairs[["user", "contact", "mid", "incoming_txt", "outgoing_txt", "label", "greet"]]
+    test_pairs = test_pairs[["user", "contact", "mid", "incoming_txt", "outgoing_txt", "greet"]]
 
     print "Training"
     # Train arrays
