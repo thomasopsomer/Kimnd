@@ -15,6 +15,7 @@ Code for the ALTEGRAD project on email prediction.
 - average_precision.py: Function to evaluate precesion @k
 - temporal_features.py: Module to extract temporal features
 - training_clf_emb.py: Module to replicate result with Doc2Vec embedding. Need all other features to be already extracted and picklized.
+- enron_graph_corpus: Module with an object to represent the graph as well as the corpus and to build / load representation for words, messaages and peoples.
 
 ## Main
 
