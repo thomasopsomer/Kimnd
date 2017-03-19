@@ -10,8 +10,7 @@ import os
 import numpy as np
 import pandas as pd
 from math import ceil
-from spacy_utils import get_custom_spacy, bow_mail_body, sent_mail_body
-from spacy_utils import extract_nlp, preprocess_txt
+from spacy_utils import get_custom_spacy, extract_nlp, preprocess_txt
 import spacy
 import cPickle as _pickle
 from sklearn.preprocessing import normalize
