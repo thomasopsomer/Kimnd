@@ -3,15 +3,10 @@ import cPickle as pkl
 from os import path
 from ast import literal_eval
 
-import pandas as pd
-import numpy as np
-
 from scipy.sparse import csr_matrix
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn import svm
 
-import utils
 import flat_dataset
 from gow import tw_idf
 import temporal_features
@@ -19,17 +14,22 @@ import textual_features
 from greetings import *
 from average_precision import mapk
 
-# Get the address book of each user
+
 def address_book_users(df):
+    '''
+    Get the addresss book (list of contacts) of each user
+    '''
     book = df.groupby("sender").recipients.sum()
     book = book.map(lambda x: set(x))
     return book
 
 
-### Predicting for each user ###
 def add_recipients(df, all_emails):
-    """all_emails: all ID contacts of all users"""
-    user = df["sender"].iloc[0] # ID of the user
+    """
+    Add recipients to the dataframe df
+    :param all_emails: all ID contacts of all users
+    """
+    user = df["sender"].iloc[0]  # ID of the user
     emails = all_emails[user]
     df["emails"] = str(list(emails))
     df["emails"] = df["emails"].map(literal_eval)
@@ -37,24 +37,23 @@ def add_recipients(df, all_emails):
 
 
 def get_test_set(test_user):
-    """test_user: the DataFrame of the test for a specific sender
-    features: the features extracted
-    emails: list of all email
-    reg: the trained predictor"""
-    # Create a dataset with all the possible combinations (userID, mid, contactID)
+    """
+    Creates a dataset with all the possible combinations (userID, mid, contactID)
+    :param test_user: the DataFrame of the test for a specific sender
+    """
     test_user = add_recipients(test_user, contacts)
     test_user = utils.flatmap(test_user, "emails", "recipient", np.string_)
 
-    # Some renaming
+    # Columns renaming
     test_user = test_user[["sender", "recipient", "mid", "body"]]
     return test_user
 
 
 def split_train_dev_set(df, percent=0.2):
     """
-    split dataset in train and dev set
-    for each sender, we put the a percentage of the last message
-    he sent in the dev set :)
+    Split dataset in train and dev set
+    For each sender, we put in the dev set the percentage 'percent' of
+    the last messages he sent
     """
     train = []
     dev = []
@@ -130,6 +129,7 @@ if __name__ == "__main__":
     # Textual features #
     #####################
 
+    # TW-IDF
     if TYPE_IDF == "tw_idf":
         print "Extracting global text features"
         idf_path = "idf.pkl"
@@ -188,10 +188,7 @@ if __name__ == "__main__":
         for tupl in dict_tuple_mids_out.keys():
             dict_tuple_mids_out[tupl] = np.average(np.array([idf_dico[m].toarray() for m in dict_tuple_mids_out[tupl]]), axis=0)
             dict_tuple_mids_out[tupl] = csr_matrix(dict_tuple_mids_out[tupl])
-
-
-    ##### TF-IDF #####
-
+    # TF-IDF
     if TYPE_IDF == "tf_idf":
 
         tf = TfidfVectorizer(analyzer=lambda x: x, ngram_range=(1, 1), min_df=5, stop_words='english')
@@ -272,7 +269,6 @@ if __name__ == "__main__":
         ind += 1
     pairs_train["greet"] = greeting_feature
 
-
     # Renaming
     pairs_train = pairs_train.rename(columns={"sender":"user", "recipient": "contact"})
     pairs_train = pairs_train[["user", "contact", "mid", "incoming_txt", "outgoing_txt", "label", "greet"]]
@@ -304,6 +300,7 @@ if __name__ == "__main__":
     scores = []
     list_sender = np.unique(test_df['sender'].tolist())
     res_all = pd.DataFrame(columns=["mid", "contact", "recipients"])
+    # For each user, a personalized ranking function is learned
     for user in list_sender:
         pairs_train_user = pairs_train[pairs_train.user == user]
         X_train = pairs_train_user.merge(time_features, how="left", on=["contact", "user"]).merge(lda_df, how="left", on="mid")
@@ -315,10 +312,9 @@ if __name__ == "__main__":
         X_train = X_train.values
 
         # Training
-        #clf = RandomForestClassifier(n_estimators=50, random_state=42, oob_score=True, n_jobs=-1)
-        clf = svm.SVC()
+        clf = RandomForestClassifier(n_estimators=50, random_state=42, oob_score=True, n_jobs=-1)
         clf.fit(X_train, y_train)
-        #print clf.oob_score_
+        print clf.oob_score_
 
         pairs_test_user = test_pairs[test_pairs.user == user]
         # Getting the arrays for the prediction
@@ -330,8 +326,7 @@ if __name__ == "__main__":
 
         print "Predictions"
         # Predictions
-        #pred = clf.predict_proba(X_test)[:, clf.classes_ == 1]
-        pred = clf.predict(X_test)
+        pred = clf.predict_proba(X_test)[:, clf.classes_ == 1]
         pred = pd.DataFrame(pred, columns=["pred"], index=test_index).reset_index()
 
         # We take the top 10 for each mail
