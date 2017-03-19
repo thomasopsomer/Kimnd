@@ -37,7 +37,10 @@ infix_re = spacy.util.compile_infix_regex(infix_entries.split())
 
 
 def create_tokenizer(nlp):
-    """ """
+    """
+    Create custom tokenizer for spacy, because of current bugs or strange
+    behaviour in spacy.
+    """
     target_name, target_version = spacy.util.split_data_name("en")
     data_path = spacy.util.get_data_path()
     path = spacy.util.match_best_version(
@@ -61,7 +64,9 @@ def create_tokenizer(nlp):
 
 
 def get_custom_spacy(parser=False, entity=False):
-    """ """
+    """
+    Initiate the spacy engine with the custom tokenizer :)
+    """
     if parser and entity:
         nlp = spacy.load("en")
     elif parser and not entity:

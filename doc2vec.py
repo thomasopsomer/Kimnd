@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+"""
+Script to learn message embeddings.
+"""
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from enron_graph_corpus import EnronGraphCorpus
 from utils import load_dataset
@@ -39,41 +41,39 @@ class DocumentGenerator(object):
                 yield TaggedDocument(bow, [mid])
 
 
-#
-path_to_data = os.path.join(os.getcwd(), 'data/')
-ds_path = path_to_data + 'training_set.csv'
-mail_path = path_to_data + 'training_info.csv'
+if __name__ == '__main__':
+    # paths
+    path_to_data = os.path.join(os.getcwd(), 'data/')
+    
+    ds_path = path_to_data + 'training_set.csv'
+    mail_path = path_to_data + 'training_info.csv'
+    ds_path_test = path_to_data + 'test_set.csv'
+    mail_path_test = path_to_data + 'test_info.csv'
 
-ds_path_test = path_to_data + 'test_set.csv'
-mail_path_test = path_to_data + 'test_info.csv'
+    df = load_dataset(ds_path, mail_path)
+    df_test = load_dataset(ds_path_test, mail_path_test, train=False)
 
-df = load_dataset(ds_path, mail_path)
-df_test = load_dataset(ds_path_test, mail_path_test, train=False)
+    egc = EnronGraphCorpus(df, df_test)
+    # parse message or load them
+    # egc.load_doc("data/docall.pkl")
+    egc.parse_bodies()
 
-egc = EnronGraphCorpus(df, df_test)
-egc.load_doc("data/docall.pkl")
+    # doc generator
+    documents = DocumentGenerator(egc, people=False)
 
-# doc generator
-documents = DocumentGenerator(egc, people=False)
+    # init doc2vec model
+    model = Doc2Vec(size=300, min_count=3, iter=50, dm=1, workers=4)
 
-# ... train doc2vec model
+    # build vocab
+    model.build_vocab(documents)
 
-model = Doc2Vec(size=300, min_count=3, iter=50, dm=1, workers=4)
+    # load pre-trained vectors
+    # fname = "emb/GoogleNews-vectors-negative300.bin"
+    # model.intersect_word2vec_format(fname, binary=True, lockf=1.0)
 
-# build vocab
-model.build_vocab(documents)
-
-# load pre-trained vectors
-fname = "emb/GoogleNews-vectors-negative300.bin"
-model.intersect_word2vec_format(fname, binary=True, lockf=1.0)
-
-# train doc-vectors
-model.train(documents)
-
-model.save("emb/")
-
-# directly learn word and doc vectors
-model = Doc2Vec(documents, size=128, min_count=3, iter=30, dm=1, workers=4)
+    # train doc-vectors
+    model.train(documents)
+    model.save("emb/d2v.model")
 
 
 
