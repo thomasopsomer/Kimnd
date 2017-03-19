@@ -20,7 +20,7 @@ Code for the ALTEGRAD project on email prediction.
 ## Main
 
 To replicate our submission result, one may execute the jupyter notebook 
-`name_of_notebook`
+`main_notebook`
 
 
 ## Dependencies
