@@ -47,9 +47,12 @@ def load_dataset(dataset_path="data/training_set.csv",
                  mail_path="data/training_info.csv",
                  train=True, flat=False):
     """
-    Load and preprocess the dataset
-    Explode the mail ids (mids)
-    Merge with content of email to get the body
+    Load  the dataset and perform some cleaning (wrong dates), mutliple
+    occurences and Merge with content of the second dataset to have everything
+    under a dataframe
+    if the flat option is set to true
+            Explode the mail ids (mids)
+
     Deal with the date issues and set the date to datetime
     """
 
@@ -79,6 +82,12 @@ def load_dataset(dataset_path="data/training_set.csv",
 
 
 def split_emails(string):
+    """
+    ARGS :
+        - (string) a list of email as a string that is  ' ' delimited
+    returns:
+        - (list of string) list of emails containing an @
+    """
     res = []
     tmp = string.split()
     keep = ""
@@ -145,6 +154,7 @@ def drop_digits(s):
 
 def bow_mail_body(txt, nlp):
     """
+    return a mail content as a Bag of words using spacy and a few regexes
     args:
         - txt: raw text
         - nlp: a spacy engine
@@ -179,6 +189,10 @@ def bow_mail_body(txt, nlp):
 
 
 def preprocess_bodies(dataset, type="train"):
+    """
+    Apply our preprocessing on a dataframe representing the whole dataset
+    contains a caching system to avoid calculatuing it over and over
+    """
     pickle_path = "preprocessed_data_{:s}.pkl".format(type)
     if path.exists(pickle_path):
         texts = pkl.load(open(pickle_path, "rb"))
@@ -203,9 +217,12 @@ def preprocess_bodies(dataset, type="train"):
 
 def extract_names(txt, nlp, n_sentences=2):
     """
+    use the spacy entity engine to extract person names from a text
     args:
         - txt: raw text
         - nlp: a spacy engine
+    return:
+        - list of names as strings
     """
     # to unicode & get rid of accent
     txt = deaccent(any2unicode(txt))
