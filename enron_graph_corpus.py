@@ -19,10 +19,13 @@ import heapq
 
 def sample_neg_recipient(row, G, emails, percent_neg=1):
     """
-    recipient: list of recipient emails
-    emails: set of all recipient emails in the dataset
-    mail2id: dict mapping mail to their id
-    percent: 0-1 float for percentage of negative samples
+    Sample fake pair of sender / recipients
+
+    Args:
+        recipient: list of recipient emails
+        emails: set of all recipient emails in the dataset
+        G: networkx graph
+        percent: 0-1 float for percentage of negative samples
     """
     # neg emails among contact of the sender
     recipients = list(row.recipients)
@@ -49,7 +52,10 @@ def sample_neg_recipient(row, G, emails, percent_neg=1):
 
 
 def sample_neg_rec_df(df, G, emails, percent_neg=0.7):
-    """ """
+    """
+    Wrapper function of sample_neg_recipient to be executed
+    on a dataframe
+    """
     df = df.copy()
     df["negs"] = df.apply(
         lambda x: sample_neg_recipient(
@@ -60,7 +66,9 @@ def sample_neg_rec_df(df, G, emails, percent_neg=0.7):
 
 def build_flat_dataset(df, G, emails, percent_neg=1,
                        dr=False, n_cores=4):
-    """ """
+    """
+    Create a flatten dataset of true and fake triplets
+    """
     df = df.copy()[["sender", "recipients", "mid"]]
     if not dr:
         G = G.to_undirected()
@@ -88,7 +96,9 @@ def build_flat_dataset(df, G, emails, percent_neg=1,
 
 
 def create_test_df(df, G, dr=False):
-    """ """
+    """
+    Create a flatten dataset of triplet candidate for test
+    """
     df = df.copy()
     if not dr:
         G = G.to_undirected()
@@ -101,7 +111,12 @@ def create_test_df(df, G, dr=False):
 
 
 def extract_bodies(docs):
-    """ """
+    """
+    Function that wrap extract_nlp to extract clean words form
+    message bodies.
+
+    Receive a list of spacy.tokens.doc.Doc object in input
+    """
     res = []
     n = len(docs)
     for i, doc in enumerate(docs):
@@ -116,6 +131,11 @@ def extract_bodies(docs):
 
 class EnronGraphCorpus(object):
     """
+    Object representing the dataset as a graph as well as a corpus
+    of text.
+
+    Can be use to load and build repsentation of message, sender
+    recipient and the special outgoing reprensentation
     """
     def __init__(self, dataset, df_test=None):
         """
@@ -134,7 +154,11 @@ class EnronGraphCorpus(object):
         self.wcbow = {}
 
     def build_graph(self, output_path=None):
-        """ """
+        """
+        Build the graph from the enron datset.
+        Can be save at `output_path` to be used to feed the
+        Node2Vec implementation from stanford snap.
+        """
         df = self.dataset
         # compoute frequency
         freq = defaultdict(Counter)
@@ -157,7 +181,9 @@ class EnronGraphCorpus(object):
                     f.write("%s %s %s\n" % (fr, to, data["weight"]))
 
     def load_n2v_vectors(self, vectors_path):
-        """ """
+        """
+        Load trained node2vec vetors from SNAP implementation
+        """
         # load node vectors
         self.n2v = KeyedVectors.load_word2vec_format(vectors_path,
                                                      binary=False)
@@ -175,7 +201,9 @@ class EnronGraphCorpus(object):
         return
 
     def load_d2v_vectors(self, d2v_model_path):
-        """ """
+        """
+        Load vectors from a previously trained doc2vec model with gensim
+        """
         # load doc2vec vectors
         from gensim.models.doc2vec import Doc2Vec
         model = Doc2Vec.load(d2v_model_path)
@@ -185,7 +213,9 @@ class EnronGraphCorpus(object):
         return
 
     def fit_idf(self, min_df=0):
-        """ """
+        """
+        Fit the IDF index. Counting in how many document each word appears
+        """
         doc_freq = Counter()
         for mid, doc in self.doc.iteritems():
             bow = [x for s in doc["sents"] for x in s]
@@ -196,7 +226,10 @@ class EnronGraphCorpus(object):
         return
 
     def parse_bodies(self, n_sentence=-1, batch_size=100, n_threads=4):
-        """ """
+        """
+        Extract bag of cleaned words / sentences from message bodies
+        using spaCy.
+        """
         # load spacy
         if not hasattr(self, "nlp"):
             print("Initiating spacy engine...")
@@ -240,7 +273,8 @@ class EnronGraphCorpus(object):
 
     def make_wcbow(self, w="uniform", tf_mode="log", k=15):
         """
-        for now use spacy vectors
+        Build WCBOW representation from word vetors
+        for now use spacy vectors (GLOVE trained on Common Crawl)
         """
         # spacy to load vectors :)
         if not hasattr(self, "nlp"):
@@ -279,7 +313,10 @@ class EnronGraphCorpus(object):
         return self.wcbow
 
     def build_people_vectors(self, d2v=False):
-        """ """
+        """
+        Build representation of sender and recipient
+        from the average of all message sent /  received
+        """
         # sender (avg vector of all message send)
         self.sender_rep = {}
         se = self.dataset.groupby("sender")["mid"].apply(list).to_dict()
@@ -305,7 +342,10 @@ class EnronGraphCorpus(object):
         return
 
     def build_recipient_sender_vectors(self, d2v=False):
-        """ """
+        """
+        Build the ongoing representation for each recipient with respect
+        to each of their sender.
+        """
         # recipient | sender rep
         df = self.dataset
         # flatten dataset
@@ -369,90 +409,3 @@ def compute_tfidf(tf, idf, tf_mode="raw", **kwarg):
     # elif tf_mode == "pol":
     #     tf = (1.0 + np.log(tf)) / (1 - b + b * len_doc / avg)
     return tf * idf
-
-
-# if __name__ == '__main__':
-
-#     # load node vectors
-#     # n2v = KeyedVectors.load_word2vec_format('emb/enron_p_1_q_03_u.emb',
-#     #                                         binary=False)
-#     # for k, x in enumerate(n2v.index2word):
-#     #     mail = id2email[int(x)]
-#     #     voc = n2v.vocab[x]
-#     #     n2v.vocab[mail] = voc
-#     #     del n2v.vocab[x]
-#     #     n2v.index2word[k] = mail
-
-#     # n2v.similarity("karen.buckley@enron.com", "andrew.h.lewis@enron.com")
-
-#     # for x, c in freq["karen.buckley@enron.com"].iteritems():
-#     #     print x, c
-#     #     print n2v.similarity("karen.buckley@enron.com", x)
-
-#     # r = n2v.most_similar("  ", topn=None)
-
-#     # plt.hist(r, bins=100)
-#     # plt.show()
-#     import os
-#     from utils import load_dataset
-#     from enron_graph_corpus import EnronGraphCorpus
-#     #
-#     path_to_data = os.path.join(os.getcwd(), 'data/')
-#     # train data
-#     ds_path = path_to_data + 'training_set.csv'
-#     mail_path = path_to_data + 'training_info.csv'
-#     # test data
-#     ds_path_test = path_to_data + 'test_set.csv'
-#     mail_path_test = path_to_data + 'test_info.csv'
-
-#     # clean a bit
-#     df = load_dataset(ds_path, mail_path)
-#     df_test = load_dataset(ds_path_test, mail_path_test, train=False)
-
-#     egc = EnronGraphCorpus(df, df_test=df_test)
-
-#     egc.build_graph("data/enron.edgelist")
-#     egc.DG
-#     egc.load_n2v_vectors("emb/enron_p_1_q_05_d.emb")
-#     egc.n2v.most_similar("karen.buckley@enron.com")
-
-#     # parse bodies
-#     egc.parse_bodies()
-#     egc.load_doc("data/doc.pkl")
-#     egc.fit_idf(min_df=4)
-#     egc.make_wcbow(w="tfidf", k=-1)
-#     egc.build_people_vectors()
-#     egc.build_recipient_sender_vectors()
-
-#     # egc.make_bow()
-#     egc.load_doc("data/doc.pkl")
-#     egc.fit_idf(min_df=4)
-#     egc.make_wcbow(w="tfidf")
-
-#     egc.build_people_vectors()
-
-
-#     import cPickle
-
-#     with open("data/docall.pkl", "w") as f:
-#         obj = egc.doc
-#         cPickle.dump(obj, f)
-
-#     with open("data/recipient_sender_rep.pkl", "w") as f:
-#         obj = egc.recipient_sender_rep
-#         cPickle.dump(obj, f)
-
-#     with open("data/msg_rep.pkl", "w") as f:
-#         obj = egc.wcbow
-#         cPickle.dump(obj, f)
-
-
-
-
-
-
-
-
-
-
-
