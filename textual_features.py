@@ -6,25 +6,47 @@ from scipy.sparse import vstack, csr_matrix
 import utils
 from gow import top_n_similarity, compute_idf
 from gensim import corpora
-import cPickle as pkl
 from sklearn.preprocessing import normalize
-from sklearn.metrics.pairwise import cosine_similarity
 
 
 def get_global_text_features(texts):
-    """from list of token returns idf (dict), a gensim dictionary, and
-    the average length"""
+    """
+    From a list of tokens, returns idf (dict), a gensim dictionary, and
+    the average length
+    """
     id2word = corpora.Dictionary(texts)
     id2word.filter_extremes(no_below=10, no_above=0.2, keep_n=100000)
     idf, avg_len = compute_idf(texts, id2word)
     return idf, id2word, avg_len
 
 
+def text_similarity_new(df_flat, dico_twidf, dico_average_twidf):
+    """
+    Computes incoming or outgoing textual features similarity: cosine similarity between a list of
+    messages and all the messages received or sent by users
+    :param df_flat: original flatten dataframe
+    :param dico_twidf: dictionary where keys: messages id and items: their textual representation (eg: twidf)
+    :param dico_average_twidf: dictionary where keys: users and items: average textual representation of
+    messages sent or received by the user
+    :return:
+    """
+    len_twidf = dico_twidf.values()[0].shape[1]
+    not_found = csr_matrix(np.zeros(len_twidf))
+    mids = vstack([dico_twidf[x] for x in df_flat.mid])
+    mids = normalize(mids)
+    averages = vstack([dico_average_twidf.get((row[1].sender, row[1].recipient), not_found) for row in df_flat.iterrows()])
+    averages = normalize(averages)
+    return np.sum(mids.multiply(averages), axis=1)
+
+
 def incoming_text_similarity(dataset, mid, user, twidf_df, n):
+    """
+    Computing incoming textual similarity
+    TOO SLOW: was not used!
+    """
     # Dataset containing all previous emails sent to person 'user'
     dataset_to_rec = dataset[dataset['recipients'].map(lambda x: user in x)]
     # Measure similarity between the message of id 'mid' and all the messages received
-    #message = dataset[dataset['mid'] == mid]['tokens'].values[0]
     dataset_similar = top_n_similarity(n, mid, dataset_to_rec, twidf_df)
     df_incoming = pd.DataFrame(columns=['mid', 'user', 'contact', 'incoming_text'])
     list_sender = np.unique(dataset['sender'].tolist())
@@ -32,19 +54,14 @@ def incoming_text_similarity(dataset, mid, user, twidf_df, n):
     df_incoming['mid'] = mid
     df_incoming['user'] = user
     df_incoming['incoming_text'] = pd.Series([1 if c in dataset_similar['sender'] else -1 for c in list_sender])
-    # for c in list_sender:
-    #     if c in dataset_similar['sender']:
-    #         df_incoming = df_incoming.append(pd.DataFrame(
-    #             [[mid, user, c, 1]], columns=df_incoming.columns)
-    #         )
-    #     else:
-    #         df_incoming = df_incoming.append(pd.DataFrame(
-    #             [[mid, user, c, -1]], columns=df_incoming.columns)
-    #         )
     return df_incoming
 
 
 def outgoing_text_similarity(dataset, mid, user, twidf_df, n):
+    """
+    Computing outgoing textual similarity
+    TOO SLOW: was not used!
+    """
     # Dataset containing all previous emails sent by person 'user'
     dataset_from_rec = dataset[dataset.sender == user]
     # Measure similarity between the message of id 'mid' and all the messages sent
@@ -53,51 +70,8 @@ def outgoing_text_similarity(dataset, mid, user, twidf_df, n):
     dataset_flat = utils.flatmap(dataset, "recipients", "recipient", np.string_)
     list_recipients = np.unique(dataset_flat['recipient'].tolist())
     list_recipients_similar = np.unique(sum(dataset_similar['recipients'].tolist(), []))
-    df_incoming['contact'] = pd.Series(list_recipients)
-    df_incoming['mid'] = mid
-    df_incoming['user'] = user
-    df_incoming['outgoing_text'] = pd.Series([1 if c in list_recipients_similar else -1 for c in list_recipients])
-    # for c in list_recipients:
-    #     if c in list_recipients_similar:
-    #         df_outgoing = df_outgoing.append(pd.DataFrame(
-    #             [[mid, user, c, 1]], columns=df_outgoing.columns)
-    #         )
-    #     else:
-    #         df_outgoing = df_outgoing.append(pd.DataFrame(
-    #             [[mid, user, c, -1]], columns=df_outgoing.columns)
-    #         )
+    df_outgoing['contact'] = pd.Series(list_recipients)
+    df_outgoing['mid'] = mid
+    df_outgoing['user'] = user
+    df_outgoing['outgoing_text'] = pd.Series([1 if c in list_recipients_similar else -1 for c in list_recipients])
     return df_outgoing
-
-
-def text_similarity_new(df_flat, dico_twidf, dico_average_twidf):
-    len_twidf = dico_twidf.values()[0].shape[1]
-    not_found = csr_matrix(np.zeros(len_twidf))
-    mids = vstack([dico_twidf[x] for x in df_flat.mid])
-    mids = normalize(mids)
-    averages = vstack([dico_average_twidf.get((row[1].sender, row[1].recipient), not_found) for row in df_flat.iterrows()])
-    averages = normalize(averages)
-    # tw idf representations are normalized
-    return np.sum(mids.multiply(averages), axis=1)
-
-if __name__ == "__main__":
-    dataset_path = "data/training_set.csv"
-    mail_path = "data/training_info.csv"
-    train_df = utils.load_dataset(dataset_path, mail_path, train=True)
-    train_df = utils.preprocess_bodies(train_df)
-    texts = train_df["tokens"]
-    # Compute idf
-    #idf, id2word, avg_len = get_global_text_features(texts)
-    idf = pkl.load(open('idf'))
-    id2word = pkl.load(open('id2word'))
-    avg_len = 66
-    twidf_df = pkl.load(open('twidf'))
-    import pdb; pdb.set_trace()
-    # Message to compare
-    mid = 158713
-    # Computing similarity between message and df_user_messages
-    user = '0892617@PageNet800'
-    n = 5
-    df_incoming = incoming_text_similarity(train_df, mid, user, twidf_df, n)
-    user = 'karen.buckley@enron.com'
-    df_outgoing = outgoing_text_similarity(train_df, mid, user, twidf_df, n)
-    print('Done.')

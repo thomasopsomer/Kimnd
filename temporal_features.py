@@ -1,11 +1,10 @@
-import random
-import operator
 import pandas as pd
-import numpy as np
 
 
-### 1. Outgoing Message Percentage ###
 def get_frequencies_outgoing(df_flat, time):
+    """
+    Computes Outgoing Message Percentage
+    """
     # Take only the mails sent before time
     df_flat = df_flat[df_flat["time"]<time]
     if df_flat.empty:
@@ -26,8 +25,10 @@ def get_frequencies_outgoing(df_flat, time):
     return frequencies
 
 
-### 2. Incoming Message Percentage ###
 def get_frequencies_incoming(df_flat, time):
+    """
+    Computes Incoming Message Percentage
+    """
     # Same operations as the previous function
     # This time, the user is the recipient
     df_flat = df_flat[df_flat["time"] < time]
@@ -44,8 +45,10 @@ def get_frequencies_incoming(df_flat, time):
     return frequencies
 
 
-# ## 3. More Recent Outgoing Percentage ###
 def get_last_time(df_flat):
+    """
+    Computes more recent outgoing percentage
+    """
     # Get last time email was sent to a recipient from a sender
     # At the end we have one row for each couple (sender, recipient)
     # and the value for the last time a mail was sent between them
@@ -55,10 +58,12 @@ def get_last_time(df_flat):
 
 
 def get_cnt_mail_out(df_flat, sender, begin, end):
-    # Given a sender and a period of time [begin, end] count the mails sent within this period
+    """
+    Given a sender and a period of time [begin, end], count the mails sent within this period
+    """
     # Filter only the mails sent in a time t between begin and end
-    df_flat = df_flat[df_flat["time"]>=begin]
-    df_flat = df_flat[df_flat["time"]<end]
+    df_flat = df_flat[df_flat["time"] >= begin]
+    df_flat = df_flat[df_flat["time"] < end]
     if df_flat.empty:
         return 0
     # Count the mails sent in this period for each sender
@@ -67,7 +72,9 @@ def get_cnt_mail_out(df_flat, sender, begin, end):
 
 
 def get_more_recent_perc_out(df_flat, time):
-    # Computes the More Recent Outgoing Percentage as in the paper
+    """
+    Computes the More Recent Outgoing Percentage as in the paper
+    """
     alpha = 2
     # For each couple (user, sender) extract the last time a mail was sent between them
     more_recents = get_last_time(df_flat)
@@ -88,9 +95,11 @@ def get_more_recent_perc_out(df_flat, time):
     return more_recents
 
 
-### 4. More Recent Incoming Percentage ###
-# Same operations as for the out feature
 def get_cnt_mail_in(df_flat, recipient, begin, end):
+    """
+    Computes the More Recent Incoming Percentage
+    Same operations as for the outgoing feature
+    """
     df_flat = df_flat[df_flat["time"]>=begin]
     df_flat = df_flat[df_flat["time"]<end]
     if df_flat.empty:
@@ -113,8 +122,10 @@ def get_more_recent_perc_in(df_flat, time):
     return more_recents
 
 
-### 5. Combining all features ###
 def get_features_out_in(df_flat, time):
+    """
+    Combining all features in a dataset
+    """
     print "Outgoing Message Percentage"
     frequencies_out = get_frequencies_outgoing(df_flat, time)
     print "Incoming Message Percentage"
