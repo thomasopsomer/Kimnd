@@ -91,3 +91,6 @@ ENV/
 # Datasets
 data/*.csv
 *.csv
+
+*.pkl
+*.tar.gz
