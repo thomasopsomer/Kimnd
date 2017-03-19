@@ -62,7 +62,14 @@ def create_tokenizer(nlp):
 
 def get_custom_spacy(parser=False, entity=False):
     """ """
-    nlp = spacy.load("en", parser=parser, entity=entity)
+    if parser and entity:
+        nlp = spacy.load("en")
+    elif parser and not entity:
+        nlp = spacy.load("en", entity=False)
+    elif entity and not parser:
+        nlp = spacy.load("en", parser=False)
+    else:
+        nlp = spacy.load("en", parser=False, entity=False)
     tokenizer = create_tokenizer(nlp)
     nlp.tokenizer = tokenizer
     return nlp
@@ -141,13 +148,78 @@ def sent_mail_body(txt, nlp):
 
 
 def preprocess_txt(raw_txt):
-    """ """
+    """
+    Preprocessing of raw txt before parsing with Spacy
+    - deaccent, to unicode
+    - split forward, redirect
+    - replace the > of email reply
+    - split lowerUpper
+    - split letterNumber
+    """
     txt = deaccent(any2unicode(raw_txt))
     txt = "\n".join(re_fw_regex.split(txt))
     txt = txt.replace(">", " ")
     txt = " ".join(lower_upper_pat.split(txt))
     txt = " ".join(number_letter_pat.split(txt))
     return txt
+
+
+def extract_nlp(doc, bow=True, n_sentence=-1, index=False,
+                people=True, s_max=-1):
+    """
+    Args:
+        input: a parsed spacy.tokens.doc.Doc
+        n_sentence: number of sentence to keep per email
+        s_max: number of sentence to consider for person name
+            extraction
+
+    Return:
+        (bow, persons) or (sentences, persons)
+    """
+    sents = []
+    persons = []
+    if s_max < 0:
+        s_max = 1e5
+    if n_sentence < 0:
+        n_sentence = 1e5
+    #
+    for i, sent in enumerate(doc.sents):
+        s = []
+        if i < n_sentence:
+            for tok in sent:
+                if (tok.lemma_ and
+                    not tok.is_punct and not tok.is_stop and
+                    not tok.like_num and not tok.is_space and
+                    not tok.like_url and len(tok) > 1 and
+                    not any((x in tok.orth_ for x in not_in_list))
+                   ):
+                    if tok.orth_.startswith("-") or tok.orth_.endswith("-"):
+                        if index:
+                            s.append(tok.rank)
+                        else:
+                            s.append(tok.lemma_.replace("-", ""))
+                    else:
+                        if index:
+                            s.append(tok.rank)
+                        else:
+                            s.append(tok.lemma_)
+                        
+                # get people names :)
+                if people and i <= s_max:
+                    if tok.ent_type_ == "PERSON":
+                        persons.append(tok.lemma_)
+            sents.append(s)
+    # if bag of word, merge all sentences
+    if bow:
+        if people:
+            return [x for y in sents for x in y], persons
+        else:
+            return [x for y in sents for x in y]
+    else:
+        if people:
+            return sents, persons
+        else:
+            return sents
 
 
 if __name__ == '__main__':
