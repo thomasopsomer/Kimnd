@@ -31,7 +31,7 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
     texts = pd.concat([training_info["body"], test_info["body"]])
     mids = list(texts.index)
     if output_path is None:
-        output_path = "LDA_data"
+        output_path = "LDA/LDA_data"
     if load_path is None:
         texts = texts.str.decode('utf-8')
         print "Loading Spacy"
@@ -58,7 +58,6 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
         id2word = corpora.Dictionary.load_from_text(load_path + "_dic")
 
     print "Applying LDA"
-    #NB_RESULTS = 10
     lda = models.ldamulticore.LdaMulticore(workers=3,
                                        corpus=corpus,
                                        num_topics=nb_topics,
@@ -76,7 +75,7 @@ def compute_lda(data_path, load_path=None, output_path=None, tfidf=True,
     all_docs = pd.DataFrame({"mid": mids,
                             "lda_res": all_docs}).set_index("mid")
     all_docs = all_docs.apply(flatten_topics, args=(nb_topics,), axis=1)
-    all_docs.to_csv("LDA_results.csv", sep=",", index=True)
+    all_docs.to_csv("LDA/LDA_results.csv", sep=",", index=True)
 
 
 def vis_lda(load_path, output_html=None):
