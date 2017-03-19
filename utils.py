@@ -16,7 +16,7 @@ import multiprocessing as mp
 from functools import partial
 
 
-# utils for loading and preprocessing dataset
+# This file contains functionnalities for loading and preprocessing dataset
 
 try:
     import regex
@@ -105,9 +105,9 @@ def split_emails(string):
 
 def split_train_dev_set(df, percent=0.2):
     """
-    split dataset in train and dev set
-    for each sender, we put the a percentage of the last message
-    he sent in the dev set :)
+    Splits dataset in train and dev set
+    For each sender, we put in the dev set the percentage 'percent' of the last
+    messages he sent
     """
     train = []
     dev = []
@@ -125,50 +125,34 @@ def split_train_dev_set(df, percent=0.2):
     return df_train, df_dev
 
 
-# Preprocessing of email content to extract Features and Cleaned text
 def is_forward(txt):
+    """
+    Removes the forward header in mail
+    """
     if "-----Original Message-----" in txt:
         return True
     else:
         return False
-
-# some dude's regexes
-re0 = re.compile('>')
-re1 = re.compile('(Message-ID(.*?\n)*X-FileName.*?\n)|'
-                 '(To:(.*?\n)*?Subject.*?\n)|'
-                 '(< (Message-ID(.*?\n)*.*?X-FileName.*?\n))')
-re2 = re.compile('(.+)@(.+)')  # Remove emails
-# remove url
-# reUrl = re.compile(
-#     r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|'
-#     '(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-re3 = re.compile('\s(-----)(.*?)(-----)\s', re.DOTALL)
-re4 = re.compile('''\s(\*\*\*\*\*)(.*?)(\*\*\*\*\*)\s''', re.DOTALL)
-re5 = re.compile('\s(_____)(.*?)(_____)\s', re.DOTALL)
-re6 = re.compile('\n( )*-.*')
-re7 = re.compile('\n( )*\d.*')
-re8 = re.compile(
-    '(\n( )*[\w]+($|( )*\n))|(\n( )*(\w)+(\s)+(\w)+(( )*\n)|$)|(\n( )*(\w)+'
-    '(\s)+(\w)+(\s)+(\w)+(( )*\n)|$)')
-re9 = re.compile('.*orwarded.*')
-re10 = re.compile(
-    'From.*|Sent.*|cc.*|Subject.*|Embedded.*|http.*|\w+\.\w+|'
-    '.*\d\d/\d\d/\d\d\d\d.*')
-re11 = re.compile(' [\d:;,.]+ ')
 
 re_fw_pattern = r"----[-\s]*(Original|Forwarded).*Subject:"
 re_fw_regex = re.compile(re_fw_pattern)
 
 
 def replace_punct(s):
-    # removes punctuation in words
+    """
+    Removes punctuation in words
+    :param s: word
+    :return: word s without punctuation
+    """
     for c in string.punctuation:
         s = s.replace(c, "")
     return s
 
 
 def drop_digits(s):
-    # remove digits
+    """
+    Remove digits from word s
+    """
     for c in range(10):
         s = s.replace(str(c), "")
     return s
@@ -176,7 +160,7 @@ def drop_digits(s):
 
 def bow_mail_body(txt, nlp):
     """
-    return a mail content as a Bag of words using spacy and a few regexes
+    Returns a mail content as a bag-of-words using spacy and a few regexes
     args:
         - txt: raw text
         - nlp: a spacy engine
@@ -239,7 +223,7 @@ def preprocess_bodies(dataset, type="train"):
 
 def extract_names(txt, nlp, n_sentences=2):
     """
-    use the spacy entity engine to extract person names from a text
+    Use the spacy entity engine to extract person names from a text
     args:
         - txt: raw text
         - nlp: a spacy engine
@@ -274,7 +258,7 @@ def extract_names(txt, nlp, n_sentences=2):
 
 def parallelize_fct(func, arg_list, num_cores, **kwargs):
     """
-    Function to parallelize a function :)
+    Function to parallelize a function
     """
     pool = mp.Pool(num_cores)
     partial_f = partial(func, **kwargs)

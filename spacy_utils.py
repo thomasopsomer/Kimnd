@@ -220,13 +220,3 @@ def extract_nlp(doc, bow=True, n_sentence=-1, index=False,
             return sents, persons
         else:
             return sents
-
-
-if __name__ == '__main__':
-    #
-    # nlp = get_custom_spacy()
-    # s = u"Hi JasonTed let me know of the situation.I'm going home."
-    # s = " ".join(pat.split(s))
-    # d = nlp(s)
-    # for x in d: print x.orth_, x.lemma_
-    pass
