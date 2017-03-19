@@ -9,15 +9,13 @@ from gensim import corpora
 from sklearn.metrics.pairwise import cosine_similarity
 import utils
 import pandas as pd
-import time
 
 
 def tw_idf(text, idf, id2word, avg_len, type="closeness", b=0.003, window=3):
-    # if len(text) == 1:
-    #     import pdb; pdb.set_trace()
-    # build the graph
+    """
+    Computes tw-idf representation for text
+    """
     graph = terms_to_graph(text, window)
-
     doc_len = len(text)
 
     if len(text) == 1:
@@ -51,7 +49,7 @@ def tw_idf(text, idf, id2word, avg_len, type="closeness", b=0.003, window=3):
 
 def compute_idf(texts, id2word):
     """
-    compute idf of all terms and put it in a dictionary
+    Computes idf of all terms and put it in a dictionary
     """
     # # unique terms
     # all_unique_terms = id2word.keys()
@@ -168,22 +166,20 @@ def compute_node_centrality(graph, type="degree"):
 
 
 def top_n_similarity(n, mid, df_user_messages, twidf_df):
-    # Compute tw-idf for 'messages' and 'user_messages'
-    #twidf_message = tw_idf(message, idf, id2word, avg_len)
+    """
+    Compute tw-idf for 'messages' and 'user_messages'
+    """
     twidf_message = twidf_df[twidf_df['mid'] == mid]['twidf']
     df_user_messages['score'] = pd.Series(np.zeros(len(df_user_messages)))
     for ind, row in df_user_messages.iterrows():
-        #print(row['tokens'])  # to debug
-        #twidf_user_mess = tw_idf(row['tokens'], idf, id2word, avg_len)
         twidf_user_mess = twidf_df[twidf_df['mid'] == row['mid']]['twidf']
         df_user_messages.loc[ind, 'score'] = cosine_similarity(twidf_message.reshape((1, -1)),
                                                                twidf_user_mess.reshape((1, -1)))[0, 0]
-    # TRAITER SCORES 0 /!\
     return df_user_messages.nlargest(n, 'score')
 
 
 if __name__ == "__main__":
-
+    # This main is used to test the functionalities
     dataset_path = "data/training_set.csv"
     mail_path = "data/training_info.csv"
     train_df = utils.load_dataset(dataset_path, mail_path, train=True)
